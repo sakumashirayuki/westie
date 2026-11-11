@@ -1,0 +1,13 @@
+name: Frontend E2E
+trigger:
+  change:
+    branches: [main]
+jobs:
+  frontend-e2e:
+    image: mcr.microsoft.com/playwright:v1.64.1-noble
+    steps:
+      - name: Install dependencies and run E2E
+        commands:
+          - node --version
+          - npm ci
+          - npm run test:e2e

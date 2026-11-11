@@ -1,0 +1,188 @@
+{
+  "name": "Archive List View",
+  "viewport": {
+    "width": 1280,
+    "height": 860
+  },
+  "root": {
+    "name": "应用",
+    "direction": "horizontal",
+    "children": [
+      {
+        "name": "侧栏（活动会话）",
+        "direction": "vertical",
+        "children": [
+          {
+            "name": "westie",
+            "type": "text",
+            "height": 40,
+            "variant": "heading"
+          },
+          {
+            "name": "＋ 新建会话",
+            "type": "button",
+            "height": 40
+          },
+          {
+            "name": "项目",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "项目 A",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "▾ my-agent-harness   ＋",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "排查启动问题",
+                "type": "link",
+                "height": 32
+              }
+            ],
+            "gap": 8
+          },
+          {
+            "name": "弹性占位",
+            "grow": true
+          },
+          {
+            "name": "分隔线",
+            "type": "divider"
+          },
+          {
+            "name": "已归档（选中态）",
+            "type": "link",
+            "height": 32
+          },
+          {
+            "name": "MCP 服务器",
+            "type": "link",
+            "height": 32
+          }
+        ],
+        "width": 304,
+        "padding": 16,
+        "gap": 16
+      },
+      {
+        "name": "归档视图",
+        "direction": "vertical",
+        "grow": true,
+        "children": [
+          {
+            "name": "视图标题栏",
+            "direction": "horizontal",
+            "align": "center",
+            "height": 56,
+            "padding": [0, 24],
+            "gap": 12,
+            "children": [
+              {
+                "name": "已归档会话",
+                "type": "text",
+                "variant": "heading",
+                "height": 32
+              },
+              {
+                "name": "共 2 条",
+                "type": "text",
+                "variant": "caption",
+                "height": 24
+              }
+            ]
+          },
+          {
+            "name": "提示说明",
+            "type": "text",
+            "variant": "caption",
+            "height": 24,
+            "padding": [0, 24]
+          },
+          {
+            "name": "归档列表",
+            "direction": "vertical",
+            "grow": true,
+            "padding": [8, 24],
+            "gap": 8,
+            "children": [
+              {
+                "name": "归档分组 A",
+                "direction": "vertical",
+                "gap": 6,
+                "children": [
+                  {
+                    "name": "▾ my-agent-harness",
+                    "type": "text",
+                    "height": 24
+                  },
+                  {
+                    "name": "归档会话卡片 1",
+                    "type": "card",
+                    "direction": "horizontal",
+                    "align": "center",
+                    "height": 64,
+                    "padding": [0, 16],
+                    "gap": 12,
+                    "children": [
+                      {
+                        "name": "实现归档功能",
+                        "type": "text",
+                        "height": 24,
+                        "grow": true
+                      },
+                      {
+                        "name": "主目录 · main · 10月30日",
+                        "type": "text",
+                        "variant": "caption",
+                        "height": 24
+                      },
+                      {
+                        "name": "⋯",
+                        "type": "icon",
+                        "width": 24,
+                        "height": 24
+                      }
+                    ]
+                  },
+                  {
+                    "name": "归档会话卡片 2",
+                    "type": "card",
+                    "direction": "horizontal",
+                    "align": "center",
+                    "height": 64,
+                    "padding": [0, 16],
+                    "gap": 12,
+                    "children": [
+                      {
+                        "name": "重构列表分页",
+                        "type": "text",
+                        "height": 24,
+                        "grow": true
+                      },
+                      {
+                        "name": "Worktree · 10月28日",
+                        "type": "text",
+                        "variant": "caption",
+                        "height": 24
+                      },
+                      {
+                        "name": "⋯",
+                        "type": "icon",
+                        "width": 24,
+                        "height": 24
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "name": "Scroll To Bottom Floating",
+  "viewport": { "width": 1280, "height": 900 },
+  "root": {
+    "name": "应用",
+    "direction": "horizontal",
+    "gap": 18,
+    "padding": 16,
+    "children": [
+      {
+        "name": "侧栏（现有，不修改）",
+        "width": 270,
+        "direction": "vertical",
+        "gap": 8,
+        "children": [
+          { "name": "westie", "type": "text", "variant": "heading", "height": 32 },
+          { "name": "＋ 新建会话", "type": "button", "height": 36 },
+          { "name": "项目", "type": "text", "variant": "caption", "height": 20 },
+          { "name": "▾ my-agent-harness   ＋", "type": "text", "height": 24 },
+          { "name": "● 滚动到底按钮（选中）", "type": "link", "height": 28 },
+          { "name": "● 会话重命名", "type": "link", "height": 28 },
+          { "name": "● 实现评测能力", "type": "link", "height": 28 }
+        ]
+      },
+      {
+        "name": "主区",
+        "grow": true,
+        "direction": "vertical",
+        "children": [
+          {
+            "name": "对话区定位容器（relative）",
+            "grow": true,
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "对话滚动容器 overflow-y-auto（可滚动，视口停在中段）",
+                "grow": true,
+                "height": 300,
+                "direction": "vertical",
+                "gap": 18,
+                "children": [
+                  { "name": "WorkspacePanel 卡片", "type": "card", "height": 72 },
+                  { "name": "第 1 轮 ConversationTurn（视口上方，不可见）", "type": "card", "height": 210 },
+                  { "name": "第 2 轮（含 RunTrace 工具调用列表）", "type": "card", "height": 240 },
+                  { "name": "第 3 轮（正在流式输出）", "type": "card", "height": 200 }
+                ]
+              },
+              {
+                "name": "浮动按钮锚点（absolute; right 12px; bottom 12px; 盖在对话内容右下角上方；无 tooltip，仅 aria-label「回到最新」）",
+                "type": "button",
+                "height": 36
+              },
+              {
+                "name": "说明：按钮压住的是第 3 轮右下角 ~36px 见方区域，滚到底后按钮消失",
+                "type": "text",
+                "variant": "caption",
+                "height": 28
+              }
+            ]
+          },
+          { "name": "⬇ 待审批交互 Dock（位置不变）", "type": "card", "height": 64 },
+          { "name": "输入框 + 发送／停止（位置不变）", "type": "card", "height": 112 }
+        ],
+        "gap": 10
+      }
+    ]
+  }
+}

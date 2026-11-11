@@ -1,0 +1,215 @@
+{
+  "name": "Archive Sidebar Entry",
+  "viewport": {
+    "width": 1280,
+    "height": 860
+  },
+  "root": {
+    "name": "应用",
+    "direction": "horizontal",
+    "children": [
+      {
+        "name": "侧栏",
+        "direction": "vertical",
+        "children": [
+          {
+            "name": "westie",
+            "type": "text",
+            "height": 40,
+            "variant": "heading"
+          },
+          {
+            "name": "＋ 新建会话",
+            "type": "button",
+            "height": 40
+          },
+          {
+            "name": "项目",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "项目 A",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "▾ my-agent-harness   ＋",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "会话 1（选中）",
+                "direction": "vertical",
+                "children": [
+                  {
+                    "name": "● 实现归档功能",
+                    "type": "link",
+                    "height": 32
+                  },
+                  {
+                    "name": "Worktree · feat/archive · Sandbox  ·  ⋯",
+                    "type": "text",
+                    "height": 40,
+                    "variant": "caption"
+                  }
+                ],
+                "gap": 4
+              },
+              {
+                "name": "会话 2",
+                "direction": "vertical",
+                "children": [
+                  {
+                    "name": "排查启动问题",
+                    "type": "link",
+                    "height": 32
+                  },
+                  {
+                    "name": "主目录 · main · Sandbox  ·  ⋯",
+                    "type": "text",
+                    "height": 40,
+                    "variant": "caption"
+                  }
+                ],
+                "gap": 4
+              }
+            ],
+            "gap": 8
+          },
+          {
+            "name": "项目 B",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "▾ another-project   ＋",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "整理设置页面",
+                "type": "link",
+                "height": 32
+              }
+            ],
+            "gap": 8
+          },
+          {
+            "name": "弹性占位",
+            "grow": true
+          },
+          {
+            "name": "分隔线",
+            "type": "divider"
+          },
+          {
+            "name": "已归档",
+            "type": "link",
+            "height": 32
+          },
+          {
+            "name": "MCP 服务器",
+            "type": "link",
+            "height": 32
+          }
+        ],
+        "width": 304,
+        "padding": 16,
+        "gap": 16
+      },
+      {
+        "name": "主区域",
+        "direction": "vertical",
+        "children": [
+          {
+            "name": "项目栏",
+            "direction": "horizontal",
+            "children": [
+              {
+                "name": "my-agent-harness  ·  feat/archive  ·  Workspace Sandbox",
+                "type": "text",
+                "height": 32,
+                "grow": true
+              },
+              {
+                "name": "⋯",
+                "type": "icon",
+                "width": 24,
+                "height": 24
+              }
+            ],
+            "align": "center",
+            "height": 48,
+            "padding": [0, 16]
+          },
+          {
+            "name": "消息区",
+            "direction": "vertical",
+            "grow": true,
+            "padding": 16,
+            "gap": 12,
+            "children": [
+              {
+                "name": "用户消息",
+                "type": "card",
+                "height": 56
+              },
+              {
+                "name": "工具调用轨迹",
+                "type": "card",
+                "height": 80
+              },
+              {
+                "name": "助手回答",
+                "type": "card",
+                "height": 100
+              }
+            ]
+          },
+          {
+            "name": "输入区",
+            "direction": "horizontal",
+            "padding": 16,
+            "gap": 8,
+            "children": [
+              {
+                "name": "输入消息…",
+                "type": "input",
+                "height": 40,
+                "grow": true
+              },
+              {
+                "name": "发送",
+                "type": "button",
+                "height": 40
+              }
+            ]
+          }
+        ],
+        "grow": true
+      },
+      {
+        "name": "行操作菜单浮层",
+        "direction": "vertical",
+        "padding": 8,
+        "gap": 4,
+        "children": [
+          {
+            "name": "重命名",
+            "type": "link",
+            "height": 32
+          },
+          {
+            "name": "归档",
+            "type": "link",
+            "height": 32
+          },
+          {
+            "name": "删除",
+            "type": "link",
+            "height": 32
+          }
+        ]
+      }
+    ]
+  }
+}

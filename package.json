@@ -1,0 +1,45 @@
+{
+  "name": "my-agent-harness",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "web"
+  ],
+  "description": "A framework-free agent harness.",
+  "type": "module",
+  "engines": {
+    "node": ">=22.23.0"
+  },
+  "scripts": {
+    "build": "npm run build:server && npm run build:web",
+    "build:server": "tsc -p tsconfig.json && node scripts/build-native.mjs",
+    "build:web": "npm --prefix web run build",
+    "check": "npm run check:server && npm run check:web",
+    "check:server": "tsc -p tsconfig.json --noEmit",
+    "check:web": "npm --prefix web run check",
+    "dev:web": "npm --prefix web run dev",
+    "diagnose:conversation": "tsc -p tsconfig.json && node --no-warnings --env-file-if-exists=.env dist/src/cli/diagnose-conversation.js",
+    "start": "node --env-file=.env dist/src/index.js",
+    "start:server": "node --env-file=.env dist/src/server-main.js",
+    "test": "npm run test:server && npm run test:web",
+    "test:server": "npm run build:server --silent && node --test dist/test/*.test.js",
+    "test:web": "npm --prefix web test",
+    "test:e2e": "npm run build && tsc -p tsconfig.e2e.json && node scripts/run-e2e.mjs",
+    "desktop:dev": "npm run build && node scripts/prepare-desktop.mjs && electron .",
+    "desktop:pack": "npm run build && node scripts/prepare-desktop.mjs && electron-builder --mac --arm64 --publish never",
+    "test:desktop": "node --test desktop/*.test.mjs scripts/prepare-desktop.test.mjs"
+  },
+  "dependencies": {
+    "openai": "^6.47.0",
+    "yaml": "^2.9.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^22.0.0",
+    "electron": "^44.9.0",
+    "electron-builder": "^26.15.3",
+    "typescript": "^5.9.3"
+  },
+  "main": "desktop/main.mjs"
+}

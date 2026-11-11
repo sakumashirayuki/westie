@@ -1,0 +1,248 @@
+{
+  "name": "Project Sessions",
+  "viewport": {
+    "width": 1280,
+    "height": 800
+  },
+  "root": {
+    "name": "应用",
+    "direction": "horizontal",
+    "children": [
+      {
+        "name": "侧栏",
+        "direction": "vertical",
+        "children": [
+          {
+            "name": "westie",
+            "type": "text",
+            "height": 40,
+            "variant": "heading"
+          },
+          {
+            "name": "＋ 新建会话",
+            "type": "button",
+            "height": 40
+          },
+          {
+            "name": "项目",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "项目 A",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "▾ my-agent-harness   ＋",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "会话 1",
+                "direction": "vertical",
+                "children": [
+                  {
+                    "name": "● 实现评测能力",
+                    "type": "link",
+                    "height": 32
+                  },
+                  {
+                    "name": "Workspace Sandbox  ·  10月30日 17:13  ·  411d76e5  ·  ⋯",
+                    "type": "text",
+                    "height": 40,
+                    "variant": "caption"
+                  }
+                ],
+                "gap": 4
+              },
+              {
+                "name": "会话 2",
+                "direction": "vertical",
+                "children": [
+                  {
+                    "name": "● 会话重命名",
+                    "type": "link",
+                    "height": 32
+                  },
+                  {
+                    "name": "Workspace Sandbox  ·  10月30日 17:13  ·  411d76e5  ·  ⋯",
+                    "type": "text",
+                    "height": 40,
+                    "variant": "caption"
+                  }
+                ],
+                "gap": 4
+              },
+              {
+                "name": "会话 3",
+                "direction": "vertical",
+                "children": [
+                  {
+                    "name": "排查启动问题",
+                    "type": "link",
+                    "height": 32
+                  },
+                  {
+                    "name": "Workspace Sandbox  ·  10月30日 17:13  ·  411d76e5  ·  ⋯",
+                    "type": "text",
+                    "height": 40,
+                    "variant": "caption"
+                  }
+                ],
+                "gap": 4
+              }
+            ],
+            "gap": 8
+          },
+          {
+            "name": "项目 B",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "▾ another-project   ＋",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "整理设置页面",
+                "type": "link",
+                "height": 32
+              },
+              {
+                "name": "Workspace Sandbox  ·  10月28日 14:21  ·  8c912a23  ·  ⋯",
+                "type": "text",
+                "height": 40,
+                "variant": "caption"
+              }
+            ],
+            "gap": 4
+          },
+          {
+            "name": "分隔线",
+            "type": "divider"
+          },
+          {
+            "name": "MCP 服务器",
+            "type": "link",
+            "height": 32
+          }
+        ],
+        "width": 304,
+        "padding": 16,
+        "gap": 16
+      },
+      {
+        "name": "会话主体",
+        "direction": "vertical",
+        "children": [
+          {
+            "name": "会话标题",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "当前项目 · my-agent-harness · Worktree · feat/evaluation · Workspace Sandbox · 会话详情 ▾",
+                "type": "text",
+                "height": 32
+              },
+              {
+                "name": "工作目录：/Users/example/.westie/worktrees/my-agent-harness/evaluation",
+                "type": "text",
+                "height": 24,
+                "variant": "caption"
+              },
+              {
+                "name": "会话详情（展开时）",
+                "direction": "vertical",
+                "gap": 4,
+                "children": [
+                  {
+                    "name": "项目主目录：/Users/example/projects/my-agent-harness",
+                    "type": "text",
+                    "height": 24
+                  },
+                  {
+                    "name": "会话 ID：411d76e5-302a-4537-8e71-520c4ca2d94a · 复制会话 ID",
+                    "type": "text",
+                    "height": 24
+                  },
+                  {
+                    "name": "此会话的工作目录与执行模式不可更改",
+                    "type": "text",
+                    "height": 24,
+                    "variant": "caption"
+                  },
+                  {
+                    "name": "目录不可用时：仍可查看历史记录，但不能在该目录启动新的 Run",
+                    "type": "text",
+                    "height": 24,
+                    "variant": "caption"
+                  }
+                ]
+              }
+            ],
+            "gap": 4
+          },
+          {
+            "name": "分隔线",
+            "type": "divider"
+          },
+          {
+            "name": "会话内容",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "用户",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "为项目添加评测能力，先整理实现步骤。",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "Agent",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "正在分析项目结构与现有测试…",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "● 运行中",
+                "type": "text",
+                "height": 40,
+                "variant": "caption"
+              }
+            ],
+            "grow": true,
+            "gap": 16
+          },
+          {
+            "name": "输入区域",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "输入消息…",
+                "type": "input",
+                "height": 40,
+                "grow": true
+              },
+              {
+                "name": "发送",
+                "type": "button",
+                "height": 40
+              }
+            ],
+            "gap": 8
+          }
+        ],
+        "grow": true,
+        "padding": 24,
+        "gap": 24
+      }
+    ]
+  }
+}

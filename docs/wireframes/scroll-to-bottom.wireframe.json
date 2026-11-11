@@ -1,0 +1,79 @@
+{
+  "name": "Scroll To Bottom",
+  "viewport": { "width": 1280, "height": 900 },
+  "root": {
+    "name": "应用",
+    "direction": "horizontal",
+    "gap": 18,
+    "padding": 16,
+    "children": [
+      {
+        "name": "侧栏（现有，不修改）",
+        "width": 270,
+        "direction": "vertical",
+        "gap": 8,
+        "children": [
+          { "name": "westie", "type": "text", "variant": "heading", "height": 32 },
+          { "name": "＋ 新建会话", "type": "button", "height": 36 },
+          { "name": "项目", "type": "text", "variant": "caption", "height": 20 },
+          { "name": "▾ my-agent-harness   ＋", "type": "text", "height": 24 },
+          { "name": "● 滚动到底按钮（选中）", "type": "link", "height": 28 },
+          { "name": "● 会话重命名", "type": "link", "height": 28 },
+          { "name": "● 实现评测能力", "type": "link", "height": 28 }
+        ]
+      },
+      {
+        "name": "主区",
+        "grow": true,
+        "direction": "vertical",
+        "children": [
+          {
+            "name": "对话滚动容器 overflow-y-auto",
+            "grow": true,
+            "direction": "vertical",
+            "gap": 18,
+            "children": [
+              { "name": "WorkspacePanel 卡片", "type": "card", "height": 72 },
+              {
+                "name": "对话记录 section",
+                "direction": "vertical",
+                "gap": 18,
+                "children": [
+                  { "name": "第 1 轮 ConversationTurn（滚动到视口上方，不可见）", "type": "card", "height": 210 },
+                  { "name": "第 2 轮（含 RunTrace 工具调用列表）", "type": "card", "height": 240 },
+                  {
+                    "name": "第 3 轮（正在流式输出）",
+                    "type": "card",
+                    "height": 130
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "底部停靠区（不随对话滚动）",
+            "direction": "vertical",
+            "gap": 10,
+            "children": [
+              {
+                "name": "滚动到底按钮行",
+                "direction": "horizontal",
+                "justify": "flex-end",
+                "padding": [0, 6],
+                "children": [
+                  {
+                    "name": "⌄ 回到最新  · 3 条新消息（圆角胶囊按钮，height 32；点击后滚到底并变回单图标）",
+                    "type": "button",
+                    "height": 32
+                  }
+                ]
+              },
+              { "name": "⬇ 待审批交互 Dock（其余位置不变）", "type": "card", "height": 64 },
+              { "name": "输入框 + 发送／停止", "type": "card", "height": 112 }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

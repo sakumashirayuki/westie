@@ -1,0 +1,285 @@
+{
+  "name": "Create Worktree Session",
+  "viewport": {
+    "width": 1280,
+    "height": 1040
+  },
+  "root": {
+    "name": "应用",
+    "direction": "horizontal",
+    "children": [
+      {
+        "name": "侧栏",
+        "direction": "vertical",
+        "children": [
+          {
+            "name": "westie",
+            "type": "text",
+            "height": 40,
+            "variant": "heading"
+          },
+          {
+            "name": "＋ 新建会话",
+            "type": "button",
+            "height": 40
+          },
+          {
+            "name": "项目",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "项目 A",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "▾ my-agent-harness   ＋",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "会话 1",
+                "direction": "vertical",
+                "children": [
+                  {
+                    "name": "● 实现评测能力",
+                    "type": "link",
+                    "height": 32
+                  },
+                  {
+                    "name": "Workspace Sandbox",
+                    "type": "text",
+                    "height": 40,
+                    "variant": "caption"
+                  }
+                ],
+                "gap": 4
+              },
+              {
+                "name": "会话 2",
+                "direction": "vertical",
+                "children": [
+                  {
+                    "name": "● 会话重命名",
+                    "type": "link",
+                    "height": 32
+                  },
+                  {
+                    "name": "Workspace Sandbox",
+                    "type": "text",
+                    "height": 40,
+                    "variant": "caption"
+                  }
+                ],
+                "gap": 4
+              },
+              {
+                "name": "会话 3",
+                "direction": "vertical",
+                "children": [
+                  {
+                    "name": "排查启动问题",
+                    "type": "link",
+                    "height": 32
+                  },
+                  {
+                    "name": "Workspace Sandbox",
+                    "type": "text",
+                    "height": 40,
+                    "variant": "caption"
+                  }
+                ],
+                "gap": 4
+              }
+            ],
+            "gap": 8
+          },
+          {
+            "name": "项目 B",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "▾ another-project   ＋",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "整理设置页面",
+                "type": "link",
+                "height": 32
+              },
+              {
+                "name": "Workspace Sandbox",
+                "type": "text",
+                "height": 40,
+                "variant": "caption"
+              }
+            ],
+            "gap": 4
+          },
+          {
+            "name": "分隔线",
+            "type": "divider"
+          },
+          {
+            "name": "MCP 服务器",
+            "type": "link",
+            "height": 32
+          }
+        ],
+        "width": 304,
+        "padding": 16,
+        "gap": 16
+      },
+      {
+        "name": "新建会话表单",
+        "direction": "vertical",
+        "children": [
+          {
+            "name": "新建会话 · my-agent-harness",
+            "type": "text",
+            "height": 40,
+            "variant": "heading"
+          },
+          {
+            "name": "选择工作目录",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "目录选项",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "○ 主目录   ·   main",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "○ 已有 worktree   ·   选择已有目录",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "● 新建 worktree",
+                "type": "text",
+                "height": 24
+              }
+            ],
+            "gap": 8
+          },
+          {
+            "name": "分隔线",
+            "type": "divider"
+          },
+          {
+            "name": "创建选项",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "起始分支",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "main  ▾",
+                "type": "input",
+                "height": 40,
+                "grow": true
+              },
+              {
+                "name": "新分支名",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "feat/evaluation",
+                "type": "input",
+                "height": 40,
+                "grow": true
+              },
+              {
+                "name": "保存位置（自动生成）",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "~/.westie/worktrees/<项目标识>/<worktree标识>",
+                "type": "text",
+                "height": 40,
+                "variant": "caption"
+              },
+              {
+                "name": "主目录未提交的修改不会自动复制到新 worktree。",
+                "type": "text",
+                "height": 40,
+                "variant": "caption"
+              }
+            ],
+            "gap": 8
+          },
+          {
+            "name": "执行模式",
+            "direction": "vertical",
+            "gap": 8,
+            "children": [
+              {
+                "name": "执行模式（创建后不可更改）",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "● Workspace Sandbox（默认）",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "仅在所选项目与受限系统路径内工作；Bash 禁止网络并逐次确认。",
+                "type": "text",
+                "variant": "caption",
+                "height": 24
+              },
+              {
+                "name": "○ Full Access",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "可访问宿主用户可访问的任意文件与网络；Bash 不再逐次确认。",
+                "type": "text",
+                "variant": "caption",
+                "height": 24
+              },
+              {
+                "name": "选择 Full Access 后：须勾选“我了解 Agent 将拥有完全文件与网络访问权限”",
+                "type": "text",
+                "variant": "caption",
+                "height": 24
+              }
+            ]
+          },
+          {
+            "name": "表单操作",
+            "direction": "vertical",
+            "children": [
+              {
+                "name": "取消",
+                "type": "link",
+                "height": 32
+              },
+              {
+                "name": "创建会话",
+                "type": "button",
+                "height": 40
+              }
+            ],
+            "gap": 16
+          }
+        ],
+        "grow": true,
+        "padding": 32,
+        "gap": 16
+      }
+    ]
+  }
+}

@@ -1,0 +1,39 @@
+appId: dev.westie.agent
+productName: westie
+directories:
+  output: dist-desktop
+  buildResources: build
+files:
+  - desktop/main.mjs
+  - desktop/backend-process.mjs
+  - package.json
+  - "!node_modules/**"
+# 后端依赖随 runtime 分发，主进程代码不需要任何 node_modules。
+# 只复制 runtime 的明确产物：node_modules 若出现在 extraResources 源目录中，
+# electron-builder 会按 dependencies 重新解析并丢弃它，导致后端缺少生产依赖。
+extraResources:
+  - from: .desktop-runtime/dev-runtime/bin
+    to: runtime/bin
+  - from: .desktop-runtime/dev-runtime/desktop
+    to: runtime/desktop
+  - from: .desktop-runtime/dev-runtime/dist
+    to: runtime/dist
+  - from: .desktop-runtime/dev-runtime/web
+    to: runtime/web
+  - from: .desktop-runtime/dev-runtime/node_modules
+    to: runtime/node_modules
+  - from: .desktop-runtime/dev-runtime/package.json
+    to: runtime/package.json
+  - from: .desktop-runtime/dev-runtime/package-lock.json
+    to: runtime/package-lock.json
+  - from: .desktop-runtime/dev-runtime/.env.example
+    to: runtime/.env.example
+asar: true
+npmRebuild: false
+mac:
+  icon: build/icon.icns
+  target:
+    - target: dmg
+      arch:
+        - arm64
+  category: public.app-category.developer-tools

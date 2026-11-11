@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>回到最新按钮 · 视觉稿</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", sans-serif;
+    color: #14201b; min-height: 100vh;
+    background: radial-gradient(circle at 15% 10%, rgba(255,255,255,0.85), transparent 28rem),
+                linear-gradient(145deg, #f7f5ee 0%, #eeece3 100%);
+  }
+  .shell { display: flex; gap: 18px; padding: 16px; max-width: 1320px; margin: 0 auto; height: 760px; }
+  .sidebar { width: 270px; display: flex; flex-direction: column; gap: 8px; font-size: 14px; }
+  .sidebar h1 { font-size: 20px; }
+  .sidebar .item { padding: 8px 10px; border-radius: 12px; color: #3c4741; }
+  .sidebar .item.active { border: 1px solid #7aae99; background: #eaf3ed; font-weight: 700; }
+  .main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+  .stage { position: relative; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .turn { border: 1px solid rgba(20,32,27,0.12); background: #fcfcf9; border-radius: 18px; padding: 16px; margin-bottom: 18px; }
+  .turn h2 { font-size: 14px; margin-bottom: 10px; }
+  .line { height: 10px; border-radius: 6px; background: #eceee7; margin-bottom: 8px; }
+  .line.short { width: 62%; }
+  .line.mid { width: 84%; }
+  .code { border-radius: 10px; background: #f1f2ec; padding: 12px; font-family: ui-monospace, monospace; font-size: 12px; color: #4b554f; margin: 10px 0; }
+  .tool { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #275f49; background: #eef4ef; border-radius: 10px; padding: 10px 12px; margin-bottom: 8px; }
+  .dot { width: 8px; height: 8px; border-radius: 999px; background: #d88e25; }
+  .dock { border: 1px solid rgba(20,32,27,0.12); background: #fcfcf9; border-radius: 18px; padding: 14px; margin-top: 10px; font-size: 13px; color: #69736d; }
+  .composer { border: 1px solid rgba(20,32,27,0.12); background: #fcfcf9; border-radius: 18px; padding: 10px; margin-top: 10px; }
+  .composer .box { border: 1px solid #d9dbd3; background: #fcfcf9; border-radius: 12px; height: 54px; padding: 10px 14px; color: #9aa39d; font-size: 14px; }
+  .composer .row { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; font-size: 12px; color: #69736d; }
+  .composer .send { background: #276c53; color: #fff; border-radius: 999px; padding: 8px 16px; font-weight: 700; font-size: 13px; }
+  .scroll-to-bottom {
+    position: absolute; left: 50%; bottom: 12px; margin-left: -18px;
+    width: 36px; height: 36px; border-radius: 999px;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid #d9dbd3; background: #fcfcf9; color: #276c52;
+    box-shadow: 0 6px 18px rgba(20,32,27,0.12);
+  }
+  .scroll-to-bottom::before { content: ""; width: 9px; height: 9px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: translateY(-2px) rotate(45deg); }
+  .note { max-width: 1320px; margin: 0 auto; padding: 0 16px 24px; font-size: 13px; color: #69736d; line-height: 1.7; }
+  .caption { font-size: 12px; color: #8a938d; margin-top: 6px; }
+</style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <h1>westie</h1>
+      <div class="item active">● 滚动到底按钮</div>
+      <div class="item">● 会话重命名</div>
+      <div class="item">● 实现评测能力</div>
+    </aside>
+    <div class="main">
+      <div class="stage">
+        <div id="scroller" style="flex:1; min-height:0; overflow-y:auto; padding-right:4px;">
+          <div class="turn">
+            <h2>第 1 轮 · 用户与回答</h2>
+            <div class="line"></div><div class="line mid"></div><div class="line short"></div>
+            <div class="code">src/components/ScrollToBottomArea.tsx</div>
+            <div class="line"></div><div class="line short"></div>
+          </div>
+          <div class="turn">
+            <h2>第 2 轮 · 工具调用</h2>
+            <div class="tool"><span class="dot"></span>Bash · npm run check:web</div>
+            <div class="tool"><span class="dot"></span>Read · web/src/App.tsx</div>
+            <div class="line"></div><div class="line mid"></div><div class="line short"></div>
+          </div>
+          <div class="turn">
+            <h2>第 3 轮 · 正在流式输出</h2>
+            <div class="line"></div><div class="line"></div><div class="line mid"></div>
+            <div class="line"></div><div class="line short"></div>
+            <div class="line"></div><div class="line mid"></div>
+            <div class="line" style="width:48%"></div>
+            <div class="line"></div><div class="line short"></div>
+            <div class="line mid"></div><div class="line"></div>
+            <div class="line" style="width:70%"></div>
+            <div class="line"></div><div class="line mid"></div>
+            <div class="line short"></div><div class="line"></div>
+            <div class="line mid"></div><div class="line short"></div>
+          </div>
+        </div>
+        <button class="scroll-to-bottom" aria-label="回到最新"></button>
+      </div>
+      <div class="dock">待审批交互 Dock（位置不变）</div>
+      <div class="composer">
+        <div class="box">继续对话…</div>
+        <div class="row"><span>Workspace Sandbox</span><span class="send">发送</span></div>
+      </div>
+    </div>
+  </div>
+  <p class="note">
+    按钮位置：<code>absolute left-1/2 bottom-3 -translate-x-1/2</code>（对话区水平居中），36px 圆形，白底描边 + 轻阴影，盖在对话内容底部中间；
+    距底部超过 200px 时出现，点击平滑滚到底后消失。本页仅用于确认视觉效果与层级，不代表线框结构。
+  </p>
+  <script>
+    const scroller = document.getElementById('scroller');
+    scroller.scrollTop = 360;
+  </script>
+</body>
+</html>

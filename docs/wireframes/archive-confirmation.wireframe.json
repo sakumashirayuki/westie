@@ -1,0 +1,140 @@
+{
+  "name": "Archive Confirmation Dialog",
+  "viewport": {
+    "width": 1280,
+    "height": 860
+  },
+  "root": {
+    "name": "应用（遮罩）",
+    "direction": "horizontal",
+    "children": [
+      {
+        "name": "侧栏（置灰）",
+        "direction": "vertical",
+        "children": [
+          {
+            "name": "westie",
+            "type": "text",
+            "height": 40,
+            "variant": "heading"
+          },
+          {
+            "name": "＋ 新建会话",
+            "type": "button",
+            "height": 40
+          },
+          {
+            "name": "▾ my-agent-harness   ＋",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "● 实现归档功能",
+            "type": "link",
+            "height": 32
+          }
+        ],
+        "width": 304,
+        "padding": 16,
+        "gap": 16,
+        "opacity": 0.35
+      },
+      {
+        "name": "主区域（置灰）",
+        "direction": "vertical",
+        "grow": true,
+        "opacity": 0.35,
+        "children": [
+          {
+            "name": "项目栏",
+            "type": "text",
+            "height": 48
+          },
+          {
+            "name": "消息区",
+            "type": "card",
+            "grow": true
+          },
+          {
+            "name": "输入区",
+            "type": "card",
+            "height": 72
+          }
+        ]
+      },
+      {
+        "name": "确认弹窗",
+        "type": "card",
+        "direction": "vertical",
+        "padding": 24,
+        "gap": 16,
+        "width": 420,
+        "height": 320,
+        "children": [
+          {
+            "name": "归档「实现归档功能」？",
+            "type": "text",
+            "variant": "heading",
+            "height": 32
+          },
+          {
+            "name": "说明列表",
+            "direction": "vertical",
+            "gap": 10,
+            "children": [
+              {
+                "name": "• 该会话将从主列表移除，移入「已归档」",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "• 此会话创建的 worktree 目录将被删除，未提交的更改无法恢复",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "• 对应的本地分支会保留，不会被删除",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "• 归档后无法继续对话，历史记录保留",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "• 此操作不可撤销",
+                "type": "text",
+                "height": 24
+              }
+            ]
+          },
+          {
+            "name": "弹性占位",
+            "grow": true
+          },
+          {
+            "name": "操作按钮",
+            "direction": "horizontal",
+            "justify": "flex-end",
+            "gap": 12,
+            "children": [
+              {
+                "name": "取消",
+                "type": "link",
+                "height": 36
+              },
+              {
+                "name": "确认归档",
+                "type": "button",
+                "height": 36
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "align": "center",
+    "justify": "center"
+  }
+}

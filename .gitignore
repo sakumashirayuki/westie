@@ -1,0 +1,20 @@
+node_modules/
+dist/
+coverage/
+test-results/
+
+.env
+.env.*
+!.env.example
+
+log/
+*.log
+.data/
+.handoff/
+
+.DS_Store
+
+# 桌面 staging 与打包产物
+.desktop-runtime/
+.desktop-cache/
+dist-desktop/
