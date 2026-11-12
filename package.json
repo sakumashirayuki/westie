@@ -6,6 +6,7 @@
     "web"
   ],
   "description": "A framework-free agent harness.",
+  "license": "MIT",
   "type": "module",
   "engines": {
     "node": ">=22.23.0"
