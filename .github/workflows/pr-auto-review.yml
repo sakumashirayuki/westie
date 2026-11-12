@@ -1,0 +1,44 @@
+name: PR auto review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: pr-auto-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    name: Review pull request
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event.pull_request.draft == false
+    steps:
+      - name: Checkout pull request
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.23.1
+
+      - name: Run automated review
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          DEEPSEEK_MODEL: ${{ vars.DEEPSEEK_MODEL }}
+          DEEPSEEK_BASE_URL: ${{ vars.DEEPSEEK_BASE_URL }}
+          PR_REVIEW_MAX_FINDINGS: ${{ vars.PR_REVIEW_MAX_FINDINGS }}
+          PR_REVIEW_MAX_TOKENS: ${{ vars.PR_REVIEW_MAX_TOKENS }}
+          PR_REVIEW_DISABLE_THINKING: ${{ vars.PR_REVIEW_DISABLE_THINKING }}
+          PR_REVIEW_BOT_LOGIN: ${{ vars.PR_REVIEW_BOT_LOGIN }}
+          PR_REVIEW_FAIL_ON_SEVERITY: ${{ vars.PR_REVIEW_FAIL_ON_SEVERITY }}
+        run: node scripts/pr-review/run-pr-review.mjs
