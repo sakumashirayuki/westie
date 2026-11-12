@@ -38,6 +38,8 @@ import {
 import { InMemoryToolGrantStore } from "../src/application/tool-grant-store.js";
 import { RunSteeringQueue } from "../src/application/run-steering-queue.js";
 import { RunRegistry } from "../src/application/run-registry.js";
+import { LarkBindingTokenStore } from "../src/application/lark-binding-token-store.js";
+import { LarkBindingRoutes } from "../src/http/lark-binding-routes.js";
 import type { WorkspaceRuntimeProvider } from "../src/application/workspace-runtime.js";
 import { AgentController } from "../src/http/agent-controller.js";
 import { WorkspaceProjectsRoutes } from "../src/http/workspace-projects-route.js";
@@ -49,6 +51,7 @@ import type {
 } from "../src/infrastructure/host-file-picker.js";
 import {
   initializeSqliteSchema,
+  LarkBindingStore,
   openSqliteDatabase,
   SQLiteConversationStore,
 } from "../src/infrastructure/sqlite/index.js";
@@ -170,6 +173,7 @@ function createAgentServer(options: TestAgentServerOptions) {
   const runRegistry = options.runRegistry ?? new RunRegistry({
     runService: conversationRunService,
   });
+  const larkBindingStore = new LarkBindingStore(operationDatabase);
   const controller = new AgentController({
     conversationService,
     conversationRunService,
@@ -199,6 +203,13 @@ function createAgentServer(options: TestAgentServerOptions) {
       allowedOrigin: options.allowedOrigin,
       fullAccessAvailable: options.fullAccessAvailable ?? true,
     }),
+    larkBindingRoutes: new LarkBindingRoutes({
+      bindingStore: larkBindingStore,
+      tokenStore: new LarkBindingTokenStore(),
+      conversationService,
+      bridgeEnabled: true,
+    }),
+    larkBindingStore,
   });
   const server = createConfiguredAgentServer(controller);
   if (database !== undefined) {

@@ -73,6 +73,8 @@ export interface ConversationSummary {
   archived: boolean;
   /** 持久化的工作目录类型；列表接口下发，未识别时为 null。 */
   workspaceKind?: WorkspaceKind | null;
+  /** 该会话是否已绑定飞书单聊；服务端未返回时默认为 false。 */
+  larkBound?: boolean;
 }
 
 export type ConversationRunStatus =
@@ -288,7 +290,8 @@ function parseConversationSummary(value: unknown): ConversationSummary {
       value.workspaceKind === null ||
       value.workspaceKind === undefined ||
       isStoredWorkspaceKind(value.workspaceKind)
-    )
+    ) ||
+    (value.larkBound !== undefined && typeof value.larkBound !== "boolean")
   ) {
     throw new RunProtocolError("服务端返回了无效的会话数据。");
   }
@@ -307,6 +310,7 @@ function parseConversationSummary(value: unknown): ConversationSummary {
       : { key: value.project.key, root: value.project.root, name: value.project.name },
     archived: value.archived,
     workspaceKind: value.workspaceKind,
+    ...(value.larkBound === undefined ? {} : { larkBound: value.larkBound }),
   };
 }
 
@@ -1315,4 +1319,88 @@ async function createHttpError(response: Response): Promise<HttpRunError> {
 
 export function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** 查询飞书桥接是否已配置凭证。 */
+export async function getLarkCapability(options?: {
+  signal?: AbortSignal;
+  fetch?: typeof fetch;
+}): Promise<{ enabled: boolean }> {
+  const fetcher = options?.fetch ?? fetch;
+  const response = await fetcher("/v1/agent/lark/capability", {
+    method: "GET",
+    signal: options?.signal,
+  });
+  if (!response.ok) throw await createHttpError(response);
+  const body = (await response.json()) as unknown;
+  if (!isRecord(body) || typeof body.enabled !== "boolean") {
+    throw new RunProtocolError("服务端返回了无效的飞书能力数据。");
+  }
+  return { enabled: body.enabled };
+}
+
+export interface IssuedLarkBindingCode {
+  code: string;
+  expiresAt: string;
+}
+
+/** 为会话签发绑定码；重复调用会作废旧码。 */
+export async function issueLarkBindingCode(
+  conversationId: string,
+  options?: { signal?: AbortSignal; fetch?: typeof fetch },
+): Promise<IssuedLarkBindingCode> {
+  const fetcher = options?.fetch ?? fetch;
+  const response = await fetcher(
+    `/v1/agent/conversations/${encodeURIComponent(conversationId)}/lark-binding/code`,
+    { method: "POST", signal: options?.signal },
+  );
+  if (!response.ok) throw await createHttpError(response);
+  const body = (await response.json()) as unknown;
+  if (
+    !isRecord(body) ||
+    typeof body.code !== "string" ||
+    typeof body.expiresAt !== "string"
+  ) {
+    throw new RunProtocolError("服务端返回了无效的绑定码数据。");
+  }
+  return { code: body.code, expiresAt: body.expiresAt };
+}
+
+export interface LarkBindingStatus {
+  bound: boolean;
+  createdAt?: string;
+}
+
+/** 读取会话的飞书绑定状态。 */
+export async function getLarkBinding(
+  conversationId: string,
+  options?: { signal?: AbortSignal; fetch?: typeof fetch },
+): Promise<LarkBindingStatus> {
+  const fetcher = options?.fetch ?? fetch;
+  const response = await fetcher(
+    `/v1/agent/conversations/${encodeURIComponent(conversationId)}/lark-binding`,
+    { method: "GET", signal: options?.signal },
+  );
+  if (!response.ok) throw await createHttpError(response);
+  const body = (await response.json()) as unknown;
+  if (!isRecord(body) || typeof body.bound !== "boolean") {
+    throw new RunProtocolError("服务端返回了无效的绑定状态数据。");
+  }
+  return {
+    bound: body.bound,
+    ...(typeof body.createdAt === "string" ? { createdAt: body.createdAt } : {}),
+  };
+}
+
+/** 解除会话的飞书绑定；重复解绑返回同样的成功结果。 */
+export async function unbindLarkChat(
+  conversationId: string,
+  options?: { signal?: AbortSignal; fetch?: typeof fetch },
+): Promise<void> {
+  const fetcher = options?.fetch ?? fetch;
+  const response = await fetcher(
+    `/v1/agent/conversations/${encodeURIComponent(conversationId)}/lark-binding`,
+    { method: "DELETE", signal: options?.signal },
+  );
+  if (!response.ok) throw await createHttpError(response);
 }

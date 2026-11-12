@@ -461,3 +461,91 @@ async function withTemporaryDatabase(
     await rm(directory, { recursive: true, force: true });
   }
 }
+
+test("migrates a version 4 database to version 6 with archived column and the two lark tables", async () => {
+  await withTemporaryDatabase((database) => {
+    initializeSqliteSchema(database);
+    // 构造版本 4 的存量库：删掉两张 lark 表与 archived 列并把版本降回 4。
+    database.exec(`
+      DROP TABLE lark_inbound_messages;
+      DROP TABLE lark_chat_bindings;
+      ALTER TABLE conversations DROP COLUMN archived;
+      PRAGMA user_version = 4;
+      INSERT INTO conversations (id, workspace_root, execution_mode, created_at, updated_at)
+      VALUES ('kept', '/project', 'workspace_sandbox', 'created', 'updated');
+    `);
+    assert.equal(readSchemaVersion(database), 4);
+
+    assert.equal(migrateSqliteSchema(database), 4);
+
+    assert.equal(readSchemaVersion(database), LATEST_SCHEMA_VERSION);
+    assert.deepEqual(
+      database.prepare(`
+        SELECT name FROM pragma_table_info('lark_chat_bindings') ORDER BY cid
+      `).all().map((row) => String(row.name)),
+      ["chat_id", "open_id", "conversation_id", "created_at"],
+    );
+    assert.deepEqual(
+      database.prepare(`
+        SELECT name FROM pragma_table_info('lark_inbound_messages') ORDER BY cid
+      `).all().map((row) => String(row.name)),
+      ["message_id", "chat_id", "received_at"],
+    );
+    // v5 迁移补上的归档列，存量行取默认值 0。
+    assert.equal(
+      database.prepare("SELECT archived FROM conversations WHERE id = 'kept'").get()
+        ?.archived,
+      0,
+    );
+    // 存量会话不受影响。
+    assert.equal(
+      database.prepare("SELECT id FROM conversations WHERE id = 'kept'").get()?.id,
+      "kept",
+    );
+    // 会话删除时绑定行级联删除。
+    database.prepare(`
+      INSERT INTO lark_chat_bindings (chat_id, open_id, conversation_id, created_at)
+      VALUES ('oc-1', 'ou-1', 'kept', 'now')
+    `).run();
+    database.exec("DELETE FROM conversations WHERE id = 'kept'");
+    assert.equal(
+      database.prepare("SELECT COUNT(*) AS n FROM lark_chat_bindings").get()?.n,
+      0,
+    );
+  });
+});
+
+test("repairs a legacy version 5 lark database by adding the archived column", async () => {
+  await withTemporaryDatabase((database) => {
+    initializeSqliteSchema(database);
+    // 复现历史重写前的开发库：user_version=5，已含两张 lark 表但没有 archived 列。
+    database.exec(`
+      ALTER TABLE conversations DROP COLUMN archived;
+      INSERT INTO conversations (id, workspace_root, execution_mode, created_at, updated_at)
+      VALUES ('legacy', '/project', 'workspace_sandbox', 'created', 'updated');
+      INSERT INTO lark_chat_bindings (chat_id, open_id, conversation_id, created_at)
+      VALUES ('oc-legacy', 'ou-1', 'legacy', 'now');
+      PRAGMA user_version = 5;
+    `);
+    assert.equal(readSchemaVersion(database), 5);
+
+    assert.equal(migrateSqliteSchema(database), 5);
+
+    assert.equal(readSchemaVersion(database), LATEST_SCHEMA_VERSION);
+    // 缺的 archived 列已补齐，存量行取默认值 0。
+    assert.equal(
+      database.prepare("SELECT archived FROM conversations WHERE id = 'legacy'").get()
+        ?.archived,
+      0,
+    );
+    // 已存在的 lark 表与数据原样保留。
+    assert.equal(
+      database
+        .prepare("SELECT conversation_id AS id FROM lark_chat_bindings WHERE chat_id = 'oc-legacy'")
+        .get()?.id,
+      "legacy",
+    );
+    // 再跑一次迁移保持幂等。
+    assert.equal(migrateSqliteSchema(database), LATEST_SCHEMA_VERSION);
+  });
+});

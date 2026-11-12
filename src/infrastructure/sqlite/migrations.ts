@@ -8,7 +8,7 @@ import { immediateTransaction } from "./transaction.js";
  * 存量库从当前版本逐级升级到 `LATEST_SCHEMA_VERSION`。结构变更与版本号
  * 在同一事务中提交。
  */
-export const LATEST_SCHEMA_VERSION = 5;
+export const LATEST_SCHEMA_VERSION = 6;
 
 export class SchemaVersionError extends Error {
   constructor(message: string) {
@@ -143,6 +143,48 @@ const MIGRATIONS: readonly Migration[] = [
         ALTER TABLE conversations
           ADD COLUMN archived INTEGER NOT NULL DEFAULT 0
             CHECK (archived IN (0, 1));
+      `);
+    },
+  },
+  /**
+   * 5 → 6：新增飞书单聊绑定关系表与入站消息去重表。两张都是新增表，没有存量
+   * 行；`conversations` 及其余所有表不做任何改动。
+   *
+   * 兼容历史重写前的开发库：飞书功能曾在未合入的分支上占用过版本号 5，这类库
+   * 的 user_version=5、已含两张 lark 表但缺少 `archived` 列。此迁移先补列，再用
+   * IF NOT EXISTS 建表（对已存在的 lark 表成为空操作），使两类库都收敛到同一
+   * 结构。新库由 initializeSqliteSchema 直接建成 v6，不经过升级路径。
+   */
+  {
+    version: 6,
+    apply(database) {
+      const columns = database
+        .prepare("SELECT name FROM pragma_table_info('conversations')")
+        .all() as unknown as ReadonlyArray<{ name: string }>;
+      if (!columns.some((column) => column.name === "archived")) {
+        database.exec(`
+          ALTER TABLE conversations
+            ADD COLUMN archived INTEGER NOT NULL DEFAULT 0
+              CHECK (archived IN (0, 1));
+        `);
+      }
+
+      // 建库脚本在 initializeSqliteSchema 中已用 IF NOT EXISTS 建过这两张表（新库
+      // 直接是 v6），升级路径上也用 IF NOT EXISTS 保持幂等、避免与建库脚本冲突。
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS lark_chat_bindings (
+          chat_id TEXT NOT NULL PRIMARY KEY,
+          open_id TEXT NOT NULL,
+          conversation_id TEXT NOT NULL UNIQUE
+            REFERENCES conversations(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL
+        ) STRICT;
+
+        CREATE TABLE IF NOT EXISTS lark_inbound_messages (
+          message_id TEXT NOT NULL PRIMARY KEY,
+          chat_id TEXT NOT NULL,
+          received_at TEXT NOT NULL
+        ) STRICT;
       `);
     },
   },

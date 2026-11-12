@@ -674,14 +674,15 @@ function cursorFor(value: unknown): string {
 
 /** 列表写入的补充字段（项目归属、工作目录实时状态）在这里不参与比较。 */
 function omitStatus(
-  summary: Record<string, unknown> | ConversationSummaryView,
+  summary: ConversationSummaryView | Record<string, unknown>,
 ): Record<string, unknown> {
   const {
     project: _project,
     workspaceKind: _workspaceKind,
     workspaceStatus: _workspaceStatus,
     archived: _archived,
+    larkBound: _larkBound,
     ...rest
-  } = summary;
+  } = summary as ConversationSummaryView & { larkBound?: boolean };
   return rest;
 }

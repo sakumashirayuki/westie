@@ -139,6 +139,9 @@ function toConversationSummary(
     archived: conversation.archived,
     createdAt: conversation.createdAt,
     updatedAt: conversation.updatedAt,
+    ...(conversation.larkBound === undefined
+      ? {}
+      : { larkBound: conversation.larkBound }),
   };
 }
 

@@ -6,11 +6,14 @@ import {
   type ConversationService,
 } from "../application/conversation-service.js";
 import type { ConversationSummaryView } from "../domain/conversation.js";
+import type { LarkBindingStore } from "../infrastructure/sqlite/lark-binding-store.js";
 import { writeHttpError, writeJson } from "./http-response.js";
 import { defineRoute } from "./route.js";
 
 export interface ConversationListRoutesOptions {
   readonly conversationService: ConversationService;
+  /** 会话列表装饰 `larkBound` 字段；缺省时不查绑定（全部 false）。 */
+  readonly larkBindingStore?: LarkBindingStore;
 }
 
 /** 会话列表与分页。只读，不要求 Origin。 */
@@ -52,14 +55,19 @@ export class ConversationListRoutes {
         ? undefined
         : parseConversationListLimit(rawLimit);
       const page = await this.options.conversationService.listConversations({
-  ...(limit === undefined ? {} : { limit }),
-  ...(rawCursor === null ? {} : { cursor: rawCursor }),
-  ...(rawArchived === null
-    ? {}
-    : { archived: parseArchived(rawArchived) }),
-});
+        ...(limit === undefined ? {} : { limit }),
+        ...(rawCursor === null ? {} : { cursor: rawCursor }),
+        ...(rawArchived === null
+          ? {}
+          : { archived: parseArchived(rawArchived) }),
+      });
+      const items = page.items.map(toConversationListItem);
+      const boundIds = this.#boundConversationIds(items);
       writeJson(response, 200, {
-        items: page.items.map(toConversationListItem),
+        items: items.map((item) => ({
+          ...item,
+          larkBound: boundIds.has(item.id),
+        })),
         nextCursor: page.nextCursor,
       });
     } catch (error) {
@@ -73,6 +81,15 @@ export class ConversationListRoutes {
       }
       throw error;
     }
+  }
+
+  #boundConversationIds(
+    items: readonly ReturnType<typeof toConversationListItem>[],
+  ): ReadonlySet<string> {
+    if (this.options.larkBindingStore === undefined) return new Set();
+    return this.options.larkBindingStore.findBoundConversationIds(
+      items.map((item) => item.id),
+    );
   }
 }
 
