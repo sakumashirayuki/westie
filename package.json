@@ -27,7 +27,8 @@
     "test:e2e": "npm run build && tsc -p tsconfig.e2e.json && node scripts/run-e2e.mjs",
     "desktop:dev": "npm run build && node scripts/prepare-desktop.mjs && electron .",
     "desktop:pack": "npm run build && node scripts/prepare-desktop.mjs && electron-builder --mac --arm64 --publish never",
-    "test:desktop": "node --test desktop/*.test.mjs scripts/prepare-desktop.test.mjs"
+    "test:desktop": "node --test desktop/*.test.mjs scripts/prepare-desktop.test.mjs",
+    "test:pr-review": "node --test scripts/pr-review/*.test.mjs"
   },
   "dependencies": {
     "openai": "^6.47.0",
