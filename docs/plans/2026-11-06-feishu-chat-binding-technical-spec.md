@@ -354,7 +354,7 @@ sequenceDiagram
 | --- | --- | --- | --- |
 | `LARK_APP_ID` | 与 Secret 同时填写才启用 | 无 | 自建应用 App ID；缺省或留空时桥接完全不启动 |
 | `LARK_APP_SECRET` | 同上 | 无 | 自建应用 App Secret |
-| `LARK_DOMAIN` | 否 | `open.feishu.cn` | API 与长连接域名；国际版 Lark 填 `open.larksuite.com` |
+| `LARK_DOMAIN` | 否 | `https://open.feishu.cn` | API 与长连接 origin，必须带协议；填裸域名时配置层自动补 `https://`。国际版 Lark 填 `https://open.larksuite.com` |
 | `LARK_ALLOWED_OPEN_IDS` | 否 | 空（不限制） | 逗号分隔的 open_id 白名单；绑定码本身仍是授权入口 |
 
 变量的读取与所有现有配置一致：`loadAgentServerConfig(process.env, ...)` 从进程环境读取。两种运行方式下的填写位置：
