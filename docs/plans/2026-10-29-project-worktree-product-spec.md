@@ -68,21 +68,13 @@ Codex 允许新会话选择工作目录、分支和独立 worktree；本机 Code
 
 ### 新建会话
 
-从侧栏已有项目的 `＋` 进入时，直接打开该项目的新建会话页面，默认选择主工作目录：
+从侧栏已有项目的 `＋` 进入时，直接打开该项目的新建会话页面，默认选择主工作目录。
 
-![从侧栏项目新建会话的原型](../images/worktree-project-entry.png)
+新建 worktree 时，用户选择起始分支和新分支，并确认执行模式。
 
-新建 worktree 时，用户选择起始分支和新分支，并确认执行模式：
+选择已有 worktree 后，页面展示该项目的目录列表与不可用状态。
 
-![新建 worktree 会话原型](../images/worktree-create.png)
-
-选择已有 worktree 后，页面展示该项目的目录列表与不可用状态：
-
-![选择已有 worktree 原型](../images/worktree-existing.png)
-
-选择 checkout 内子目录时，原型展示项目主工作目录并保留所选子目录：
-
-![选择仓库子目录原型](../images/worktree-selected-subdirectory.png)
+选择 checkout 内子目录时，原型展示项目主工作目录并保留所选子目录。
 
 [打开交互原型](../../docs/wireframes/create-worktree-session.wireframe.html)，可以切换工作目录和执行模式。原型使用示例数据，不会实际创建会话。
 

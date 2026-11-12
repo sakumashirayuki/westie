@@ -2,8 +2,6 @@
 
 一个不依赖应用框架的最小 Agent Harness，使用模型原生 Tool Calling 执行工具并继续对话。支持 CLI、Web 运行台和 macOS 桌面客户端。
 
-![Agent Harness 运行界面：左侧为历史会话，右侧为当前项目、对话内容和输入框](./docs/images/agent-harness-overview.png)
-
 ## 环境要求
 
 - macOS，以及用于构建进程收容 helper 的 Command Line Tools
