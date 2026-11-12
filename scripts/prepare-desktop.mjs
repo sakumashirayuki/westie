@@ -30,6 +30,14 @@ TAVILY_API_KEY=your-tavily-api-key
 AGENT_MODEL_CONTEXT_TOKENS=1048576
 AGENT_MODEL_MAX_OUTPUT_TOKENS=32768
 
+# 飞书单聊绑定桥接：同时填写 LARK_APP_ID 与 LARK_APP_SECRET 才会开启。
+# 凭证来自飞书开放平台自建应用的「凭证与基础信息」页；同一凭证只能被一个
+# Westie 进程使用。国际版域名用 open.larksuite.com。
+# LARK_APP_ID=cli_xxx
+# LARK_APP_SECRET=
+# LARK_DOMAIN=open.feishu.cn
+# LARK_ALLOWED_OPEN_IDS=
+
 # 通过 nvm 等安装的命令需要把 bin 目录加到 PATH，MCP 也可以写绝对命令路径。
 # PATH=/Users/you/.nvm/versions/node/v22.23.1/bin:$PATH
 `;

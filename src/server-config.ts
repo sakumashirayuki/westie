@@ -1,6 +1,8 @@
 import { homedir } from "node:os";
 import { isAbsolute, join, resolve } from "node:path";
 
+import { loadLarkConfig, type LarkConfig } from "./lark/lark-config.js";
+
 const DEFAULT_DATABASE_PATH = ".data/agent-harness.sqlite";
 const DEFAULT_MEMORY_ROOT = join(homedir(), ".my-agent-harness", "memory");
 
@@ -16,6 +18,8 @@ export interface AgentServerConfig {
   readonly compactionRecentPairs?: number;
   /** 项目记忆根目录；绝对路径，未配置时为服务账号 home 下的默认目录。 */
   readonly memoryRoot: string;
+  /** 飞书桥接配置；未填凭证时为「桥接关闭」。 */
+  readonly lark: LarkConfig;
 }
 
 export interface AgentModelCapacity {
@@ -71,6 +75,7 @@ export function loadAgentServerConfig(
       "AGENT_MEMORY_ROOT",
       DEFAULT_MEMORY_ROOT,
     ),
+    lark: loadLarkConfig(environment),
   };
 }
 

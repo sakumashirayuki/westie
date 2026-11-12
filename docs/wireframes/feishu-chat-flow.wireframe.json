@@ -1,0 +1,538 @@
+{
+  "name": "Feishu Chat Flow",
+  "viewport": {
+    "width": 1440,
+    "height": 1040
+
+  },
+  "root": {
+    "name": "页面",
+    "direction": "horizontal",
+    "padding": 24,
+    "gap": 24,
+    "justify": "space-between",
+    "children": [
+      {
+        "name": "旅程索引列",
+        "direction": "vertical",
+        "width": 280,
+        "padding": 16,
+        "gap": 8,
+        "children": [
+          {
+            "name": "链路验证旅程",
+            "type": "text",
+            "variant": "heading",
+            "height": 32
+          },
+          {
+            "name": "① 发送绑定码完成授权",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "② 收到绑定成功确认",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "③ 发文本开始一轮新任务",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "④ 机器人回复收到确认",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "⑤ 待批准：回 Westie 确认",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "⑥ 运行中发消息 = 追加消息",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "⑦ 最终结果分段完整送达",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "⑧ 发送解绑指令解除绑定",
+            "type": "text",
+            "height": 24
+          },
+          {
+            "name": "分隔线",
+            "type": "divider"
+          },
+          {
+            "name": "对应产品方案 FR-01 ~ FR-05；中栏为单聊主流程，右栏为异常与边界回复",
+            "type": "text",
+            "variant": "caption",
+            "height": 48
+          }
+        ]
+      },
+      {
+        "name": "飞书单聊画面",
+        "type": "card",
+        "direction": "vertical",
+        "grow": true,
+        "maxWidth": 480,
+        "padding": 16,
+        "gap": 12,
+        "children": [
+          {
+            "name": "单聊头部",
+            "direction": "horizontal",
+            "gap": 8,
+            "align": "center",
+            "children": [
+              {
+                "name": "机器人头像",
+                "type": "icon",
+                "width": 36,
+                "height": 36
+              },
+              {
+                "name": "标题区",
+                "direction": "vertical",
+                "gap": 4,
+                "children": [
+                  {
+                    "name": "Westie 助手",
+                    "type": "text",
+                    "height": 24
+                  },
+                  {
+                    "name": "机器人 · 单聊",
+                    "type": "text",
+                    "variant": "caption",
+                    "height": 16
+                  }
+                ]
+              },
+              {
+                "name": "右侧占位",
+                "grow": true
+              },
+              {
+                "name": "更多",
+                "type": "icon",
+                "width": 24,
+                "height": 24
+              }
+            ]
+          },
+          {
+            "name": "分隔线",
+            "type": "divider"
+          },
+          {
+            "name": "消息列表",
+            "direction": "vertical",
+            "grow": true,
+            "gap": 16,
+            "children": [
+              {
+                "name": "用户消息 · 绑定码",
+                "direction": "horizontal",
+                "justify": "flex-end",
+                "children": [
+                  {
+                    "name": "我 · 17:20",
+                    "type": "card",
+                    "direction": "vertical",
+                    "width": 260,
+                    "padding": 12,
+                    "gap": 8,
+                    "children": [
+                      {
+                        "name": "WST-8F3K2Q",
+                        "type": "text",
+                        "height": 24
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "机器人消息 · 绑定成功",
+                "direction": "horizontal",
+                "gap": 8,
+                "children": [
+                  {
+                    "name": "机器人头像",
+                    "type": "icon",
+                    "width": 32,
+                    "height": 32
+                  },
+                  {
+                    "name": "机器人 · 17:20",
+                    "type": "card",
+                    "direction": "vertical",
+                    "width": 340,
+                    "padding": 12,
+                    "gap": 8,
+                    "children": [
+                      {
+                        "name": "已绑定到会话「实现评测能力」。之后直接在本聊天发消息即可驱动该会话。",
+                        "type": "text",
+                        "height": 40
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "用户消息 · 新任务",
+                "direction": "horizontal",
+                "justify": "flex-end",
+                "children": [
+                  {
+                    "name": "我 · 17:22",
+                    "type": "card",
+                    "direction": "vertical",
+                    "width": 300,
+                    "padding": 12,
+                    "gap": 8,
+                    "children": [
+                      {
+                        "name": "帮我跑一下测试，看下失败的用例",
+                        "type": "text",
+                        "height": 24
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "机器人消息 · 收到确认",
+                "direction": "horizontal",
+                "gap": 8,
+                "children": [
+                  {
+                    "name": "机器人头像",
+                    "type": "icon",
+                    "width": 32,
+                    "height": 32
+                  },
+                  {
+                    "name": "机器人 · 17:22",
+                    "type": "card",
+                    "direction": "vertical",
+                    "width": 340,
+                    "padding": 12,
+                    "gap": 8,
+                    "children": [
+                      {
+                        "name": "收到，已开始处理。任务结束后我会把结果发到这里。",
+                        "type": "text",
+                        "height": 40
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "机器人消息 · 待批准提醒",
+                "direction": "horizontal",
+                "gap": 8,
+                "children": [
+                  {
+                    "name": "机器人头像",
+                    "type": "icon",
+                    "width": 32,
+                    "height": 32
+                  },
+                  {
+                    "name": "系统提醒 · 17:23",
+                    "type": "card",
+                    "direction": "vertical",
+                    "width": 340,
+                    "padding": 12,
+                    "gap": 8,
+                    "children": [
+                      {
+                        "name": "任务需要批准：请求执行 Bash（npm test）。请回到 Westie 网页界面批准，任务正在等待。",
+                        "type": "text",
+                        "height": 56
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "用户消息 · 追加消息",
+                "direction": "horizontal",
+                "justify": "flex-end",
+                "children": [
+                  {
+                    "name": "我 · 17:25",
+                    "type": "card",
+                    "direction": "vertical",
+                    "width": 300,
+                    "padding": 12,
+                    "gap": 8,
+                    "children": [
+                      {
+                        "name": "顺便看下 lint",
+                        "type": "text",
+                        "height": 24
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "机器人消息 · 追加确认",
+                "direction": "horizontal",
+                "gap": 8,
+                "children": [
+                  {
+                    "name": "机器人头像",
+                    "type": "icon",
+                    "width": 32,
+                    "height": 32
+                  },
+                  {
+                    "name": "机器人 · 17:25",
+                    "type": "card",
+                    "direction": "vertical",
+                    "width": 340,
+                    "padding": 12,
+                    "gap": 8,
+                    "children": [
+                      {
+                        "name": "已作为追加消息交给当前任务，不会另开新任务。",
+                        "type": "text",
+                        "height": 40
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "机器人消息 · 最终结果 1/2",
+                "direction": "horizontal",
+                "gap": 8,
+                "children": [
+                  {
+                    "name": "机器人头像",
+                    "type": "icon",
+                    "width": 32,
+                    "height": 32
+                  },
+                  {
+                    "name": "最终结果 · 17:31 · 长消息 1/2",
+                    "type": "card",
+                    "direction": "vertical",
+                    "width": 340,
+                    "padding": 12,
+                    "gap": 8,
+                    "children": [
+                      {
+                        "name": "测试跑完，共 3 个失败用例：1) auth.test.ts 超时；2) run-registry 断言不匹配；3) 迁移测试缺少清理。",
+                        "type": "text",
+                        "height": 56
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "机器人消息 · 最终结果 2/2",
+                "direction": "horizontal",
+                "gap": 8,
+                "children": [
+                  {
+                    "name": "机器人头像",
+                    "type": "icon",
+                    "width": 32,
+                    "height": 32
+                  },
+                  {
+                    "name": "最终结果 · 17:31 · 长消息 2/2",
+                    "type": "card",
+                    "direction": "vertical",
+                    "width": 340,
+                    "padding": 12,
+                    "gap": 8,
+                    "children": [
+                      {
+                        "name": "失败集中在超时与测试桩过期，建议先修复前两个；lint 有 2 个警告，无错误。",
+                        "type": "text",
+                        "height": 40
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "用户消息 · 解绑",
+                "direction": "horizontal",
+                "justify": "flex-end",
+                "children": [
+                  {
+                    "name": "我 · 17:40",
+                    "type": "card",
+                    "direction": "vertical",
+                    "width": 260,
+                    "padding": 12,
+                    "gap": 8,
+                    "children": [
+                      {
+                        "name": "/unbind",
+                        "type": "text",
+                        "height": 24
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "机器人消息 · 解绑成功",
+                "direction": "horizontal",
+                "gap": 8,
+                "children": [
+                  {
+                    "name": "机器人头像",
+                    "type": "icon",
+                    "width": 32,
+                    "height": 32
+                  },
+                  {
+                    "name": "机器人 · 17:40",
+                    "type": "card",
+                    "direction": "vertical",
+                    "width": 340,
+                    "padding": 12,
+                    "gap": 8,
+                    "children": [
+                      {
+                        "name": "已解除绑定。本聊天不再驱动该会话，会话历史仍保留在 Westie。",
+                        "type": "text",
+                        "height": 40
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "分隔线",
+            "type": "divider"
+          },
+          {
+            "name": "输入区",
+            "direction": "horizontal",
+            "gap": 8,
+            "align": "center",
+            "children": [
+              {
+                "name": "发送消息给 Westie 助手…",
+                "type": "input",
+                "grow": true,
+                "height": 40
+              },
+              {
+                "name": "发送",
+                "type": "button",
+                "height": 40
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "异常回复列",
+        "direction": "vertical",
+        "width": 320,
+        "gap": 12,
+        "children": [
+          {
+            "name": "其他机器人回复",
+            "type": "text",
+            "variant": "heading",
+            "height": 32
+          },
+          {
+            "name": "未绑定单聊",
+            "type": "card",
+            "direction": "vertical",
+            "padding": 12,
+            "gap": 8,
+            "children": [
+              {
+                "name": "我只响应已绑定的 Westie 会话。请先在 Westie 界面生成绑定码，再发送给我。",
+                "type": "text",
+                "height": 56
+              }
+            ]
+          },
+          {
+            "name": "非文本消息",
+            "type": "card",
+            "direction": "vertical",
+            "padding": 12,
+            "gap": 8,
+            "children": [
+              {
+                "name": "当前仅支持文本消息，图片、文件和语音暂不支持。",
+                "type": "text",
+                "height": 40
+              }
+            ]
+          },
+          {
+            "name": "追加消息已满",
+            "type": "card",
+            "direction": "vertical",
+            "padding": 12,
+            "gap": 8,
+            "children": [
+              {
+                "name": "当前任务待处理的追加消息已满，请稍后再发。",
+                "type": "text",
+                "height": 40
+              }
+            ]
+          },
+          {
+            "name": "会话已删除",
+            "type": "card",
+            "direction": "vertical",
+            "padding": 12,
+            "gap": 8,
+            "children": [
+              {
+                "name": "原会话已不存在，绑定已失效，请在 Westie 重新绑定。",
+                "type": "text",
+                "height": 40
+              }
+            ]
+          },
+          {
+            "name": "群聊",
+            "type": "card",
+            "direction": "vertical",
+            "padding": 12,
+            "gap": 8,
+            "children": [
+              {
+                "name": "群聊中的消息不响应（本版仅支持单聊）。",
+                "type": "text",
+                "height": 40
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}

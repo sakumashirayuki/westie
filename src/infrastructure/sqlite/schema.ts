@@ -233,6 +233,20 @@ export function initializeSqliteSchema(database: DatabaseSync): void {
         conversation_id TEXT NULL
           REFERENCES conversations(id) ON DELETE SET NULL
       ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS lark_chat_bindings (
+        chat_id TEXT NOT NULL PRIMARY KEY,
+        open_id TEXT NOT NULL,
+        conversation_id TEXT NOT NULL UNIQUE
+          REFERENCES conversations(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL
+      ) STRICT;
+
+      CREATE TABLE IF NOT EXISTS lark_inbound_messages (
+        message_id TEXT NOT NULL PRIMARY KEY,
+        chat_id TEXT NOT NULL,
+        received_at TEXT NOT NULL
+      ) STRICT;
     `);
     if (objects.length === 0) {
       writeSchemaVersion(database, LATEST_SCHEMA_VERSION);

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Navigate,
   Route,
@@ -11,6 +11,7 @@ import { ProjectOpenDialog } from "./components/ProjectOpenDialog";
 import { ConversationComposer } from "./components/ConversationComposer";
 import { ConversationSidebarPanel } from "./components/ConversationSidebarPanel";
 import { ConversationTurn } from "./components/ConversationTurn";
+import { FeishuBindingDialog } from "./components/FeishuBindingDialog";
 import { ScrollToBottomArea } from "./components/ScrollToBottomArea";
 import { McpSettingsDialog } from "./components/McpSettingsDialog";
 import { PendingInteractionDock } from "./components/PendingInteractionDock";
@@ -25,9 +26,15 @@ import { useConversationRun } from "./hooks/useConversationRun";
 import { useRunActivity } from "./hooks/useRunActivity";
 import { useMcpSettings } from "./hooks/useMcpSettings";
 import { useProjectOpen } from "./hooks/useProjectOpen";
+import { useLarkBinding } from "./hooks/useLarkBinding";
+import { conversationDisplayName } from "./components/conversation-display-name";
 import { buildOpenRequest } from "./project-open-state";
 import { ArchivedPage } from "./components/ArchivedPage";
-import type { ConversationDetail } from "./run-client";
+import type {
+  ConversationDetail,
+  ConversationSummary,
+} from "./run-client";
+import { getLarkCapability } from "./run-client";
 
 export default function App() {
   return (
@@ -57,6 +64,25 @@ function ConversationPage() {
   const mcp = useMcpSettings();
   // 删除确认弹窗开合由侧栏容器持有，这里同步一份用于禁用项目打开等操作。
   const [deletionOpen, setDeletionOpen] = useState(false);
+  // 飞书绑定弹窗；目标会话来自列表行菜单，以 key 触发重读该会话的绑定状态。
+  const [larkTarget, setLarkTarget] =
+    useState<ConversationSummary | null>(null);
+  const [larkCapabilityEnabled, setLarkCapabilityEnabled] = useState(false);
+  const lark = useLarkBinding(larkTarget?.id);
+  // 进入页面时读取一次飞书能力，决定行菜单是否显示「绑定飞书单聊」入口。
+  // 放在 useEffect 中，避免重渲染重复请求；卸载后不再落地状态。
+  useEffect(() => {
+    let cancelled = false;
+    getLarkCapability().then(
+      (capability) => {
+        if (!cancelled) setLarkCapabilityEnabled(capability.enabled);
+      },
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const projectOpen = useProjectOpen({
     isBlocked: () => deletionOpen,
     onOpened: (conversation) => switchTo(conversation),
@@ -111,6 +137,13 @@ function ConversationPage() {
             runActivities={runActivity.activities}
             isRunActive={(id) => runActivity.activities.has(id)}
             newConversationDisabled={projectDialogOpen}
+            onBindLark={larkCapabilityEnabled
+              ? (conversation) => {
+                  // 先设置弹窗目标会话使其挂载，再读取该会话的绑定状态。
+                  setLarkTarget(conversation);
+                  lark.open(conversation.id);
+                }
+              : undefined}
             onNewConversation={() => void projectOpen.inspectDirectory()}
             activeNav={mcp.state.status === "closed" ? undefined : "mcp"}
             onOpenMcpSettings={mcp.open}
@@ -247,6 +280,18 @@ function ConversationPage() {
               onRespond={run.respond}
               onSelectFile={run.selectFile}
             />
+
+            {larkTarget !== null && larkCapabilityEnabled && (
+              <FeishuBindingDialog
+                open={lark.state.status !== "loading"}
+                conversationName={conversationDisplayName(larkTarget)}
+                lark={lark}
+                onClose={() => {
+                  lark.close();
+                  setLarkTarget(null);
+                }}
+              />
+            )}
 
             <ConversationComposer
               input={run.input}

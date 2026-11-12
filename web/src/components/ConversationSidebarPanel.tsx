@@ -52,6 +52,8 @@ export interface ConversationSidebarPanelProps {
   onDeleted?: (conversationId: string) => void;
   onArchived?: (conversationId: string) => void;
   onMissing?: (conversationId: string) => void;
+  /** 飞书能力启用时传入，行菜单显示「绑定飞书单聊」；未传则不显示入口。 */
+  onBindLark?: (conversation: ConversationSummary) => void;
 }
 
 /**
@@ -80,6 +82,7 @@ export const ConversationSidebarPanel = forwardRef<
   onDeleted,
   onArchived,
   onMissing,
+  onBindLark,
 }, ref) {
   const deletion = useConversationDeletion({
     isBlocked: isOperationBlocked,
@@ -149,6 +152,7 @@ export const ConversationSidebarPanel = forwardRef<
           onRename: rename.request,
           onArchive: archive.request,
           onDelete: deletion.request,
+          onBindLark,
           onLoadMore: catalog.loadMore,
           onRetry: catalog.refresh,
         }}

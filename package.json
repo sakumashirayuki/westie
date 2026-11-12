@@ -32,6 +32,7 @@
     "test:pr-review": "node --test scripts/pr-review/*.test.mjs"
   },
   "dependencies": {
+    "@larksuiteoapi/node-sdk": "^1.76.0",
     "openai": "^6.47.0",
     "yaml": "^2.9.0",
     "zod": "^4.4.3"
