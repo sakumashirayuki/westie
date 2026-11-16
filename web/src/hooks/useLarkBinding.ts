@@ -5,6 +5,7 @@ import {
   getLarkCapability,
   issueLarkBindingCode,
   unbindLarkChat,
+  type ConversationSummary,
   type IssuedLarkBindingCode,
 } from "../run-client";
 
@@ -21,43 +22,57 @@ export type LarkBindingState =
   | { status: "submitting" };
 
 export interface UseLarkBindingResult {
+  /** 桥接是否配置了凭证；挂载时探测一次，决定行菜单入口与弹窗是否渲染。 */
   readonly capabilityEnabled: boolean;
+  /** 当前绑定弹窗的目标会话；null 表示弹窗关闭。 */
+  readonly target: ConversationSummary | null;
   readonly state: LarkBindingState;
-  /** 打开弹窗时读取能力与绑定状态；不自动签发绑定码。 */
-  readonly open: (conversationId: string) => void;
+  /** 打开弹窗：记录目标会话并读取该会话的绑定状态，不自动签发绑定码。 */
+  readonly open: (conversation: ConversationSummary) => void;
   readonly close: () => void;
   readonly issue: () => Promise<void>;
   readonly unbind: () => Promise<void>;
 }
 
 /**
- * 管理飞书绑定弹窗的三态（未绑定 / 已绑定 / 码已过期）与请求错误。
+ * 飞书绑定弹窗的唯一编排者：持有目标会话、能力开关与三态（未绑定 / 已绑定 /
+ * 码已过期）状态机。
  *
- * - 打开弹窗时以 GET 接口读取实际绑定状态；绑定码到期后本地切到过期态。
+ * - 能力探测只在挂载时发一次；打开弹窗只请求该会话的绑定状态，不重复探测能力。
  * - `open` 只读不签发；「重新生成 / 签发」才调用 POST 签发新码并作废旧码。
+ * - 入口渲染由 `capabilityEnabled` 控制，桥接未配置时弹窗不会挂载。
  */
-export function useLarkBinding(conversationId?: string): UseLarkBindingResult {
+export function useLarkBinding(): UseLarkBindingResult {
   const [capabilityEnabled, setCapabilityEnabled] = useState(false);
+  const [target, setTarget] = useState<ConversationSummary | null>(null);
   const [openState, setOpenState] = useState<LarkBindingState>({
     status: "loading",
   });
   const activeId = useRef<string | undefined>(undefined);
 
-  // 打开弹窗时一次性查询能力与绑定状态。
-  const open = useCallback((conversationId: string) => {
-    activeId.current = conversationId;
+  // 进入页面时读取一次飞书能力，决定行菜单是否显示「绑定飞书单聊」入口。
+  // 放在 useEffect 中，避免重渲染重复请求；卸载后不再落地状态。
+  useEffect(() => {
+    let cancelled = false;
+    getLarkCapability().then(
+      (capability) => {
+        if (!cancelled) setCapabilityEnabled(capability.enabled);
+      },
+      () => {},
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // 打开弹窗时查询目标会话的绑定状态。
+  const open = useCallback((conversation: ConversationSummary) => {
+    activeId.current = conversation.id;
+    setTarget(conversation);
     setOpenState({ status: "loading" });
     void (async () => {
       try {
-        const [capability, binding] = await Promise.all([
-          getLarkCapability(),
-          getLarkBinding(conversationId),
-        ]);
-        setCapabilityEnabled(capability.enabled);
-        if (!capability.enabled) {
-          setOpenState({ status: "unavailable", error: "飞书桥接未配置。" });
-          return;
-        }
+        const binding = await getLarkBinding(conversation.id);
         setOpenState(
           binding.bound
             ? { status: "bound", createdAt: binding.createdAt }
@@ -74,6 +89,7 @@ export function useLarkBinding(conversationId?: string): UseLarkBindingResult {
 
   const close = useCallback(() => {
     activeId.current = undefined;
+    setTarget(null);
     setOpenState({ status: "loading" });
   }, []);
 
@@ -125,5 +141,13 @@ export function useLarkBinding(conversationId?: string): UseLarkBindingResult {
     return () => clearTimeout(timer);
   }, [openState]);
 
-  return { capabilityEnabled, state: openState, open, close, issue, unbind };
+  return {
+    capabilityEnabled,
+    target,
+    state: openState,
+    open,
+    close,
+    issue,
+    unbind,
+  };
 }
