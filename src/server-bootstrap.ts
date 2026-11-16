@@ -16,18 +16,10 @@ import { InMemoryWorkspaceGrantStore } from "./application/workspace-grant-store
 import { InMemoryToolGrantStore } from "./application/tool-grant-store.js";
 import { RunSteeringQueue } from "./application/run-steering-queue.js";
 import { RunRegistry } from "./application/run-registry.js";
-import { LarkBindingTokenStore } from "./application/lark-binding-token-store.js";
-import { LarkInboundQueue } from "./application/lark-inbound-queue.js";
-import { LarkMessageRouter } from "./application/lark-message-router.js";
-import { LarkRunBridge } from "./application/lark-run-bridge.js";
-import { LarkOutbound } from "./application/lark-outbound.js";
-import { LarkClient } from "./lark/lark-client.js";
-import { isLarkConfigEnabled } from "./lark/lark-config.js";
-import { LarkBindingRoutes } from "./http/lark-binding-routes.js";
+import { createLarkBridge } from "./lark/lark-bridge.js";
 import { AgentController } from "./http/agent-controller.js";
 import {
   initializeSqliteSchema,
-  LarkBindingStore,
   openSqliteDatabase,
   SQLiteConversationStore,
 } from "./infrastructure/sqlite/index.js";
@@ -92,17 +84,6 @@ export async function startAgentServer(
 
   try {
     initializeSqliteSchema(database);
-    const larkBindingStore = new LarkBindingStore(database);
-    // 入站去重记录保留 24 小时：进程启动清理一次，之后每小时清理一次。
-    const inboundRetentionMs = 24 * 60 * 60 * 1000;
-    const purgeInbound = (): void => {
-      larkBindingStore.purgeOldInboundMessages(
-        new Date(Date.now() - inboundRetentionMs).toISOString(),
-      );
-    };
-    purgeInbound();
-    const inboundPurgeTimer = setInterval(purgeInbound, 60 * 60 * 1000);
-    inboundPurgeTimer.unref();
     const worktreeOperations = new SQLiteWorktreeOperationStore(database);
     const interruptedOperations = worktreeOperations.markInterruptedOperations();
     if (interruptedOperations > 0) {
@@ -214,51 +195,16 @@ export async function startAgentServer(
     const runRegistry = new RunRegistry({
       runService: conversationRunService,
     });
-    const larkEnabled = isLarkConfigEnabled(config.lark);
-    const larkClient = larkEnabled ? new LarkClient(config.lark) : undefined;
-    // 出站发送器始终存在（供 run bridge / router 引用）；桥接关闭时用落日志的空实现，
-    // 因为此时不会收到任何事件、也不会发任何东西。
-    const larkOutbound = new LarkOutbound({
-      client: {
-        sendMessage:
-          larkClient === undefined
-            ? async () => ({ status: "failed" as const })
-            : (request) => larkClient.sendMessage(request),
-      },
-    });
-    const larkRunBridge = new LarkRunBridge({
-      registry: runRegistry,
-      outbound: larkOutbound,
-    });
-    const larkTokenStore = new LarkBindingTokenStore();
-    const larkRouter = larkEnabled
-      ? new LarkMessageRouter({
-          store: larkBindingStore,
-          tokenStore: larkTokenStore,
-          allowedOpenIds: config.lark.allowedOpenIds,
-          conversationService,
-          conversationStore,
-          registry: runRegistry,
-          steeringQueue,
-          runBridge: larkRunBridge,
-          outbound: larkOutbound,
-        })
-      : undefined;
-    const larkInboundQueue = larkRouter === undefined
-      ? undefined
-      : new LarkInboundQueue((event) =>
-          handleInboundEvent(larkRouter, larkBindingStore, event),
-        );
-    if (larkEnabled && larkClient !== undefined) {
-      await startLarkBridge(larkClient, larkInboundQueue);
-    }
-    const larkBindingRoutes = new LarkBindingRoutes({
-      bindingStore: larkBindingStore,
-      tokenStore: larkTokenStore,
+    // 飞书渠道的装配、入站协议解析与启停时序都收敛在 LarkBridge 门面内。
+    const larkBridge = createLarkBridge({
+      config,
+      database,
       conversationService,
-      bridgeEnabled: larkEnabled,
-      allowedOrigin: config.allowedOrigin,
+      conversationStore,
+      runRegistry,
+      steeringQueue,
     });
+    await larkBridge.start();
     const controller = new AgentController({
       conversationService,
       conversationRunService,
@@ -292,8 +238,8 @@ export async function startAgentServer(
         fullAccessAvailable: isLoopbackBindHost(config.host),
         probe: probeMcpServer,
       }),
-      larkBindingRoutes,
-      larkBindingStore,
+      larkBindingRoutes: larkBridge.bindingRoutes,
+      larkBindingStore: larkBridge.bindingStore,
     });
     const server = createAgentServer(controller);
 
@@ -310,55 +256,27 @@ export async function startAgentServer(
     }`;
     console.log(`Agent SSE server listening on ${url}`);
 
-    // 幂等关闭：先停接新连接，再停飞书、取消 Run、关连接、关库、等 MCP pool 退出。
+    // 幂等关闭：先停接新连接，再由飞书门面停收事件、取消 Run、停出站泵，
+    // 最后关残留连接、关库、等 MCP pool 退出。
     const shutdown = async (): Promise<void> => {
-      clearInterval(inboundPurgeTimer);
-      // 1. WSClient 停止接收飞书事件；worker 已入队事件宽限 3 秒。
-      if (larkClient !== undefined) larkClient.close();
-      const inboundGrace = new Promise<void>((resolve) => {
-        const timeout = setTimeout(resolve, 3_000);
-        timeout.unref();
-        if (larkInboundQueue === undefined) {
-          resolve();
-          return;
-        }
-        const poll = (): void => {
-          if (larkInboundQueue.pendingCount === 0) {
-            resolve();
-            return;
-          }
-          setTimeout(poll, 50).unref();
-        };
-        poll();
-      });
-      await inboundGrace;
-      // 宽限结束仍积压的入站事件直接丢弃，避免关停期间继续产生副作用。
-      const droppedInbound = larkInboundQueue?.flushPending() ?? 0;
-      if (droppedInbound > 0) {
-        console.warn(JSON.stringify({
-          event: "lark.inbound.dropped_on_shutdown",
-          dropped: droppedInbound,
-        }));
-      }
-      // 2. 取消运行中的 Run 并等它们落库（上限 10 秒）；飞书启动的 Run 一并被取消，
-      //    终态事件推动出站泵把取消/结果通知放入出站队列。
+      // server.close 只停止接受新连接，已建立的 SSE 连接保留到门面关停结束。
       const stopped = new Promise<void>((resolve) => {
         server.close(() => resolve());
       });
-      await new Promise<void>((resolve) => {
-        const timeout = setTimeout(resolve, 10_000);
-        timeout.unref();
-        runRegistry.cancelAll("Agent service is shutting down.").then(
-          () => {
-            clearTimeout(timeout);
-            resolve();
-          },
-        );
-      });
-      // 3. 中止出站频控与重试等待，再等出站泵结束（桥内部上限 5 秒），
-      //    随后结束残留 SSE 连接。
-      larkOutbound.close();
-      await larkRunBridge.stop().catch(() => {});
+      await larkBridge.shutdown(() =>
+        // 取消运行中的 Run 并等它们落库（上限 10 秒）；飞书启动的 Run 一并被取消，
+        // 终态事件推动出站泵把取消/结果通知放入出站队列。
+        new Promise<void>((resolve) => {
+          const timeout = setTimeout(resolve, 10_000);
+          timeout.unref();
+          runRegistry.cancelAll("Agent service is shutting down.").then(
+            () => {
+              clearTimeout(timeout);
+              resolve();
+            },
+          );
+        }),
+      );
       server.closeAllConnections();
       try {
         await stopped;
@@ -381,102 +299,5 @@ export async function startAgentServer(
   } catch (error) {
     conversationStore.close();
     throw error;
-  }
-}
-
-/**
- * 处理一条飞书事件：先按规则 1/2 过滤在路由器外做，再在 worker 内对消息类事件写
- * 去重记录，保证同一条消息只生效一次。这里从 SDK 原始事件提取本方案需要的字段。
- */
-async function handleInboundEvent(
-  larkRouter: LarkMessageRouter,
-  larkBindingStore: LarkBindingStore,
-  event: unknown,
-): Promise<void> {
-  const context = extractInboundContext(event);
-  if (context === undefined || context === "unrouteable") return;
-  if (context === "ignored") return;
-  // 规则 1/2：群聊与非用户发送者不写去重记录、不路由。
-  if (context.chatType !== "p2p" || context.senderType !== "user") return;
-  // 规则 3：先写去重记录。已存在说明平台重试推送，忽略。
-  const receivedAt = new Date().toISOString();
-  const isNew = larkBindingStore.ensureInboundMessageSeen(
-    context.messageId,
-    context.chatId,
-    receivedAt,
-  );
-  if (!isNew) return;
-  await larkRouter.route(context);
-}
-
-function extractInboundContext(
-  event: unknown,
-): import("./application/lark-message-router.js").InboundMessageContext | "ignored" | "unrouteable" {
-  const value = event as {
-    sender?: { sender_type?: unknown; sender_id?: { open_id?: unknown } };
-    message?: {
-      message_id?: unknown;
-      chat_id?: unknown;
-      chat_type?: unknown;
-      message_type?: unknown;
-      content?: unknown;
-    };
-  };
-  if (
-    !isRecord(value) ||
-    !isRecord(value.message) ||
-    typeof value.message.chat_id !== "string" ||
-    typeof value.message.chat_type !== "string" ||
-    typeof value.message.message_type !== "string" ||
-    typeof value.message.message_id !== "string" ||
-    !isRecord(value.sender) ||
-    typeof value.sender.sender_type !== "string" ||
-    !isRecord(value.sender.sender_id) ||
-    typeof value.sender.sender_id.open_id !== "string"
-  ) {
-    return "ignored";
-  }
-  const text = parseInboundText(value.message.content);
-  return {
-    chatId: value.message.chat_id,
-    chatType: value.message.chat_type,
-    senderType: value.sender.sender_type,
-    senderOpenId: value.sender.sender_id.open_id,
-    messageId: value.message.message_id,
-    messageType: value.message.message_type,
-    text,
-  };
-}
-
-function parseInboundText(content: unknown): string {
-  if (typeof content !== "string") return "";
-  try {
-    const parsed = JSON.parse(content) as { text?: unknown };
-    return typeof parsed.text === "string" ? parsed.text : "";
-  } catch {
-    return "";
-  }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-async function startLarkBridge(
-  larkClient: LarkClient,
-  queue: LarkInboundQueue | undefined,
-): Promise<boolean> {
-  if (queue === undefined) return false;
-  try {
-    await larkClient.start((event) => queue.push(event));
-    console.warn(JSON.stringify({ event: "lark.ws.started" }));
-    return true;
-  } catch (error) {
-    console.error(JSON.stringify({
-      event: "lark.ws.start_failed",
-      message: error instanceof Error ? error.message : String(error),
-    }));
-    // 启动失败只记录日志，HTTP 服务照常启动（网页功能不受影响）。
-    return false;
   }
 }

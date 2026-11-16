@@ -105,6 +105,7 @@ dsh-superagent-prototype 的「主会话路由 + 每工单一个执行会话」�
 | `src/lark/lark-config.ts` | 读取并校验飞书相关环境变量，导出配置类型；未配置凭证时返回「桥接关闭」 |
 | `src/lark/lark-client.ts` | 创建 SDK `Client` 与 `WSClient`，封装启动、关闭与连接状态日志；对上层只暴露事件源与消息发送两个端口，发送时统一走 post 富文本 |
 | `src/lark/lark-message-content.ts` | post 消息 content 构造、请求体线上字节测量与 Markdown 切片，保证每片请求体低于 30 KiB 上限 |
+| `src/lark/lark-bridge.ts` | 飞书渠道组合根（门面）：装配上述全部 lark 组件、承载入站协议解析与启停时序，向 `server-bootstrap` 只暴露两个 HTTP 出口与 `start/shutdown` 生命周期钩子 |
 | `src/application/lark-binding-token-store.ts` | 内存一次性绑定码的签发、校验、消费与过期清理 |
 | `src/application/lark-inbound-queue.ts` | 有界内存队列 + 单串行 worker；保证处理函数 3 秒内返回 |
 | `src/application/lark-message-router.ts` | 入站消息的过滤、绑定/解绑、空闲开 Run、忙时追加等全部路由决策 |
@@ -113,7 +114,7 @@ dsh-superagent-prototype 的「主会话路由 + 每工单一个执行会话」�
 | `src/infrastructure/sqlite/lark-binding-store.ts` | 绑定关系与入站消息去重的 SQLite 读写 |
 | `src/http/lark-binding-routes.ts` | 网页使用的能力查询、绑定码签发、绑定状态查询与解绑接口 |
 
-表结构定义仍集中在 [schema.ts](../../src/infrastructure/sqlite/schema.ts)，迁移集中在 [migrations.ts](../../src/infrastructure/sqlite/migrations.ts)，装配集中在 [server-bootstrap.ts](../../src/server-bootstrap.ts)。
+表结构定义仍集中在 [schema.ts](../../src/infrastructure/sqlite/schema.ts)，迁移集中在 [migrations.ts](../../src/infrastructure/sqlite/migrations.ts)；通用装配仍在 [server-bootstrap.ts](../../src/server-bootstrap.ts)，飞书渠道的组件装配、入站协议解析与关停时序收敛在 [lark-bridge.ts](../../src/lark/lark-bridge.ts) 门面内，宿主通过注入 `cancelRuns` 回调参与关停编排。
 
 ### 进程与边界
 
@@ -511,6 +512,7 @@ CREATE TABLE IF NOT EXISTS lark_inbound_messages (
 | `src/infrastructure/sqlite/lark-binding-store.ts` | 新增：绑定 CRUD、`findBoundConversationIds`、消息去重与清理 |
 | `src/lark/lark-config.ts`、`src/lark/lark-client.ts` | 新增：配置解析与 SDK 生命周期封装；出站统一发送 post 富文本消息 |
 | `src/lark/lark-message-content.ts` | 新增：post content 构造、线上字节测量与 Markdown 切片 |
+| `src/lark/lark-bridge.ts` | 新增：飞书渠道组合根，收纳原 `server-bootstrap` 内的 lark 装配、入站协议解析函数与关停时序，对外只暴露门面 |
 | `src/application/lark-binding-token-store.ts` | 新增：内存一次性绑定码 |
 | `src/application/lark-inbound-queue.ts` | 新增：有界队列与串行 worker |
 | `src/application/lark-message-router.ts` | 新增：入站路由决策 |
@@ -522,7 +524,7 @@ CREATE TABLE IF NOT EXISTS lark_inbound_messages (
 | `src/http/conversation-item-routes.ts` | 详情序列化补充 `larkBound`，按单个会话 id 查询绑定 |
 | `src/server-config.ts`、`.env.example` | 新增四个环境变量与说明 |
 | `desktop/main.mjs`、`scripts/prepare-desktop.mjs` | 两处桌面版 `.env` 模板（`ENV_TEMPLATE`、`DESKTOP_ENV_TEMPLATE`）同步加入飞书变量 |
-| `src/server-bootstrap.ts` | 装配绑定存储、令牌、桥接；接入关闭序列 |
+| `src/server-bootstrap.ts` | 只保留 `createLarkBridge` 门面装配与两个 HTTP 出口注入；关停时以 `cancelRuns` 回调委托飞书侧时序，不再直接引用任何 lark 组件 |
 | `web/src/run-client.ts`、`web/src/hooks/useLarkBinding.ts` | 新增 API 客户端与状态 hook |
 | `web/src/components/FeishuBindingDialog.tsx`、`ConversationList.tsx` | 新增弹窗、入口与已绑定标记 |
 
