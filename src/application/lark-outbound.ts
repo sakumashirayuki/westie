@@ -1,7 +1,5 @@
 import type { SendMessageRequest, SendOutcome } from "../lark/lark-client.js";
 
-/** 单片回答上限：留足 JSON 与飞书头部余量。 */
-export const MAX_OUTBOUND_CHUNK_BYTES = 120 * 1024;
 /** 同接收者相邻发送最小间隔，对应 5 QPS 上限。 */
 export const OUTBOUND_MIN_INTERVAL_MS = 210;
 /** 发送失败后的重试间隔序列。 */
@@ -23,8 +21,9 @@ export interface LarkOutboundOptions {
 }
 
 /**
- * 出站文本发送器：文本切片（不切断多字节字符）、按单聊串行并满足频控间隔、失败
- * 按计划重试、uuid 幂等。
+ * 出站消息发送器：按单聊串行并满足频控间隔、失败按计划重试、uuid 幂等。
+ * Markdown 切片与 post 请求体尺寸约束归 lark-message-content 负责，本类只发送
+ * 已经切好的单条内容。
  *
  * 串行队列以 chat_id 为键：同一接收者的消息按到达顺序发送，前一条完成（含重试
  * 结束）后等待最小间隔再发下一条；不同 chat_id 之间互不影响。
@@ -57,19 +56,6 @@ export class LarkOutbound {
     const next = previous.then(() => this.#sendWithThrottle(request));
     this.#chains.set(request.chatId, next);
     return next;
-  }
-
-  /** 按可打印字符保存的字节切片：优先换行、其次空格，不切断多字节字符。 */
-  chunkText(text: string, maxBytes = MAX_OUTBOUND_CHUNK_BYTES): readonly string[] {
-    if (Buffer.byteLength(text, "utf8") <= maxBytes) return [text];
-    const result: string[] = [];
-    let start = 0;
-    while (start < text.length) {
-      const end = findChunkEnd(text, start, maxBytes);
-      result.push(text.slice(start, end));
-      start = end;
-    }
-    return result;
   }
 
   async #sendWithThrottle(request: OutboundSendRequest): Promise<void> {
@@ -105,24 +91,6 @@ export class LarkOutbound {
       }
     }
   }
-}
-
-/** 在 start 之后找片边界：不超过 maxBytes 的最后一个换行 / 空格，否则按字符回落。 */
-function findChunkEnd(text: string, start: number, maxBytes: number): number {
-  let budget = maxBytes;
-  let end = start;
-  for (; end < text.length; end += 1) {
-    const char = text[end];
-    const byteLength = Buffer.byteLength(char, "utf8");
-    if (budget - byteLength < 0) break;
-    budget -= byteLength;
-  }
-  if (end <= start) return start + 1;
-  // 在 [start, end) 内从后向前找换行或空格，避免切断多字节字符。
-  const slice = text.slice(start, end);
-  const lastBreak = Math.max(slice.lastIndexOf("\n"), slice.lastIndexOf(" "));
-  if (lastBreak >= 0) return start + lastBreak + 1;
-  return end;
 }
 
 /**

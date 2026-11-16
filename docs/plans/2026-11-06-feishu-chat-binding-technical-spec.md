@@ -81,16 +81,18 @@ dsh-superagent-prototype 的「主会话路由 + 每工单一个执行会话」�
 
 处理函数把事件原样压入内存队列后立即返回。worker 完成去重与路由：会话空闲，调用 `registry.start({conversationId: "c882", input: "帮我跑下测试"})` 得到 `runId = "r_9"`，先回一条收到确认；Run 结束后把最终回答发回同一 `chat_id`。
 
-下文按相对 Westie 进程的方向称呼消息：飞书经长连接推来的事件称为**入站消息**；Westie 主动调用飞书 API 发往单聊的内容称为**出站消息**（本例的收到确认与最终回答都是出站消息）。两条出站消息都调用 `POST /open-apis/im/v1/messages?receive_id_type=chat_id`，以收到确认为例：
+下文按相对 Westie 进程的方向称呼消息：飞书经长连接推来的事件称为**入站消息**；Westie 主动调用飞书 API 发往单聊的内容称为**出站消息**（本例的收到确认与最终回答都是出站消息）。两条出站消息都调用 `POST /open-apis/im/v1/messages?receive_id_type=chat_id`，统一使用 post 富文本消息，以收到确认为例：
 
 ```json
 {
   "receive_id": "oc_p2p_7",
-  "msg_type": "text",
-  "content": "{\"text\":\"收到，已开始处理。任务结束后我会把结果发到这里。\"}",
+  "msg_type": "post",
+  "content": "{\"zh_cn\":{\"title\":\"\",\"content\":[[{\"tag\":\"md\",\"text\":\"收到，已开始处理。任务结束后我会把结果发到这里。\"}]]}}",
   "uuid": "westie-ack-r_9"
 }
 ```
+
+`content` 是序列化后的 post 对象：`zh_cn.content` 为段落数组，每个段落是行内元素数组，Westie 只使用一个 `md` 元素承载整段消息原文。text 消息按纯文本渲染，Markdown 语法字符会原样露出；`md` 标签由飞书原生渲染器按 CommonMark 0.31 + GFM 渲染标题、加粗、删除线、表格、任务列表、引用与代码块。收到确认、待批准提醒等纯文本通知没有 Markdown 语法，在 `md` 标签中按普通文本渲染，因此全部出站消息共用同一种消息类型，避免双轨。
 
 `uuid` 是出站幂等键：每条通知的 uuid 由其业务身份派生（新任务收到确认与终态通知用 runId，追加确认用入站 message_id，终态通知再加终态类型），不同通知互不相同，同一通知的重试保持同一个值；飞书侧一小时内同 uuid 只成功发送一条。
 
@@ -101,12 +103,13 @@ dsh-superagent-prototype 的「主会话路由 + 每工单一个执行会话」�
 | 文件 | 职责 |
 | --- | --- |
 | `src/lark/lark-config.ts` | 读取并校验飞书相关环境变量，导出配置类型；未配置凭证时返回「桥接关闭」 |
-| `src/lark/lark-client.ts` | 创建 SDK `Client` 与 `WSClient`，封装启动、关闭与连接状态日志；对上层只暴露事件源与消息发送两个端口 |
+| `src/lark/lark-client.ts` | 创建 SDK `Client` 与 `WSClient`，封装启动、关闭与连接状态日志；对上层只暴露事件源与消息发送两个端口，发送时统一走 post 富文本 |
+| `src/lark/lark-message-content.ts` | post 消息 content 构造、请求体线上字节测量与 Markdown 切片，保证每片请求体低于 30 KiB 上限 |
 | `src/application/lark-binding-token-store.ts` | 内存一次性绑定码的签发、校验、消费与过期清理 |
 | `src/application/lark-inbound-queue.ts` | 有界内存队列 + 单串行 worker；保证处理函数 3 秒内返回 |
 | `src/application/lark-message-router.ts` | 入站消息的过滤、绑定/解绑、空闲开 Run、忙时追加等全部路由决策 |
 | `src/application/lark-run-bridge.ts` | 登记并订阅飞书启动的 Run，消费事件流，发送结果、失败、取消与待批准提醒 |
-| `src/application/lark-outbound.ts` | 出站文本发送：切片、按单聊串行、频控间隔、有界重试、uuid 幂等 |
+| `src/application/lark-outbound.ts` | 出站消息发送：按单聊串行、频控间隔、有界重试、uuid 幂等 |
 | `src/infrastructure/sqlite/lark-binding-store.ts` | 绑定关系与入站消息去重的 SQLite 读写 |
 | `src/http/lark-binding-routes.ts` | 网页使用的能力查询、绑定码签发、绑定状态查询与解绑接口 |
 
@@ -338,13 +341,13 @@ sequenceDiagram
 | 对象 | 单位 | 上限 | 超限行为 |
 | --- | --- | --- | --- |
 | 入站文本（新任务与追加一致） | UTF-8 字节 | 16 KiB | 不发起任务 / 不入队，回复超长提示 |
-| 单条出站文本请求体 | 飞书接口限制 | 150 KB | 发送侧按 120 KiB 切片，留足 JSON 与头部余量 |
-| 回答切片 | UTF-8 字节 | 每片 ≤ 120 KiB，优先在换行、其次空格边界切分，不切断多字节字符 | 多片连续发送，文末标注 `（i/n）` |
+| 单条出站 post 请求体 | 飞书接口限制 | 30 KiB（text 消息为 150 KB），超限返回 230001 | 发送侧按线上字节预算切片，post 包装与标识字段的固定开销计入预算 |
+| 回答切片 | 线上字节（含双层 JSON 转义） | 每片请求体 ≤ 30 KiB，优先在换行、其次空格边界切分，不切断多字节字符 | 多片连续发送，文末标注 `（i/n）`；表格或代码块跨片时各片独立渲染 |
 | 对同一接收者频控 | 飞书限制 | 5 QPS | 每个 `chat_id` 一条 FIFO 队列，相邻发送间隔 ≥ 210 ms |
 | 发送失败重试 | 次数 / 间隔 | 首次失败后重试 3 次，间隔 2s、10s、60s | 仍失败则放弃，写结构化日志（含 runId、chatId、飞书错误码），会话内结果保持完整 |
 | 入站队列容量 | 事件条数 | 256 | 满后丢弃新事件并记录告警；个人使用量级下不应触发 |
 
-通知严格限定为产品方案的三类：收到确认、待批准提醒、终态结果。步骤与工具调用过程不推送。发送器为纯文本消息（`msg_type: "text"`），本阶段不使用卡片。
+通知严格限定为产品方案的三类：收到确认、待批准提醒、终态结果。步骤与工具调用过程不推送。发送器统一使用 post 富文本消息（`msg_type: "post"`），以 `md` 标签承载 Markdown 原文，由飞书原生渲染标题、加粗、表格与代码块；本阶段不使用卡片。
 
 ### 配置
 
@@ -506,12 +509,13 @@ CREATE TABLE IF NOT EXISTS lark_inbound_messages (
 | `src/infrastructure/sqlite/migrations.ts` | `LATEST_SCHEMA_VERSION` 升到 6，新增 version 6 迁移：缺 `archived` 列时补列，再建两张 lark 表 |
 | `src/infrastructure/sqlite/schema.ts` | 建库脚本加入两张新表 |
 | `src/infrastructure/sqlite/lark-binding-store.ts` | 新增：绑定 CRUD、`findBoundConversationIds`、消息去重与清理 |
-| `src/lark/lark-config.ts`、`src/lark/lark-client.ts` | 新增：配置解析与 SDK 生命周期封装 |
+| `src/lark/lark-config.ts`、`src/lark/lark-client.ts` | 新增：配置解析与 SDK 生命周期封装；出站统一发送 post 富文本消息 |
+| `src/lark/lark-message-content.ts` | 新增：post content 构造、线上字节测量与 Markdown 切片 |
 | `src/application/lark-binding-token-store.ts` | 新增：内存一次性绑定码 |
 | `src/application/lark-inbound-queue.ts` | 新增：有界队列与串行 worker |
 | `src/application/lark-message-router.ts` | 新增：入站路由决策 |
 | `src/application/lark-run-bridge.ts` | 新增：飞书启动 Run 的订阅泵与待批准提醒 |
-| `src/application/lark-outbound.ts` | 新增：切片、频控、重试、uuid |
+| `src/application/lark-outbound.ts` | 新增：频控、重试、uuid 串行发送 |
 | `src/http/lark-binding-routes.ts` | 新增：能力查询、绑定码签发、绑定状态查询与解绑四个接口 |
 | `src/http/agent-controller.ts` | 注册新路由的正则分发；`isAgentApiPath` 增加能力查询路径；向控制器注入绑定查询依赖 |
 | `src/http/conversation-list-routes.ts` | 列表项序列化补充 `larkBound`，经注入的绑定查询一次性批量取已绑定会话 id |
@@ -536,7 +540,7 @@ CREATE TABLE IF NOT EXISTS lark_inbound_messages (
 1. 版本 4 存量库经迁移逐级升级为 v6：`archived` 列补齐且存量行取默认值 0，两张新表结构与约束符合 DDL，原会话数据不变，绑定行随会话删除级联清除；历史 v5 lark 开发库（已含两张 lark 表、缺 `archived`）升级到 v6 后自动补列、lark 数据原样保留，再次执行迁移保持幂等；新库直接为 v6；旧版本代码打开 v6 库抛 `SchemaVersionError`。
 2. 绑定码：签发/过期/一次性消费/重新签发作废/失败尝试计数。
 3. 消息路由器在注入的假存储、假 registry、假发送器下覆盖：群聊与机器人消息忽略、非文本拒绝、空消息忽略、未绑定引导、白名单拒绝、空闲开新 Run、忙时入 steering、`ConversationBusyError` 回退为 steering、队列满与超长拒绝、绑定码五种结果、解绑、会话已删除、同一 `message_id` 重复只生效一次。
-4. 出站发送器：中英文混合文本按字节切片不切断多字节字符并正确编号；同一 `chat_id` 串行且满足最小间隔；失败按计划重试且 uuid 保持不变；重试耗尽后落日志且不抛断 Run。
+4. 出站内容与发送器：post content 结构为单段 `md` 元素且双层 JSON 转义可还原；长 Markdown 按线上字节切片，不切断多字节字符，每片连同包装与最长标识占位都低于 30 KiB，引号/反斜杠对抗输入同样满足，多片正确编号；同一 `chat_id` 串行且满足最小间隔；失败按计划重试且 uuid 保持不变；重试耗尽后落日志且不抛断 Run。
 5. 出站泵：completed/error/cancelled 三种终态产生对应通知；`awaiting_interaction` 边沿只提醒一次，同段等待重复状态不重复提醒；解绑后在跑 Run 的终态仍送达一次。
 6. HTTP 接口：能力开关、签发/查询/解绑的成功与 404 路径；会话列表与详情的 `larkBound` 装饰正确。
 7. 前端组件测试：弹窗三态渲染、入口在 capability 关闭时不出现、已绑定标记显示。

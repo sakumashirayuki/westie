@@ -6,10 +6,11 @@ import {
 } from "@larksuiteoapi/node-sdk";
 
 import type { LarkBridgeEnabledConfig } from "./lark-config.js";
+import { buildPostContent } from "./lark-message-content.js";
 
 export interface SendMessageRequest {
   readonly chatId: string;
-  /** 消息内容（单个内）。 */
+  /** 消息内容（Markdown 原文，单条），由 post 的 md 标签渲染。 */
   readonly content: string;
   /** 出站幂等键；由出站层派生，同一通知的重试保持同一值。 */
   readonly uuid: string;
@@ -72,15 +73,18 @@ export class LarkClient {
     this.#ws.close({ force: true });
   }
 
-  /** 向指定单聊发送一条文本消息，做一次尝试，不抛错。 */
+  /**
+   * 向指定单聊发送一条 post 富文本消息（md 标签渲染 Markdown），做一次尝试，不抛错。
+   * 切片、频控与重试归出站层；失败结果保留飞书 code/msg 供结构化日志排错。
+   */
   async sendMessage(request: SendMessageRequest): Promise<SendOutcome> {
     try {
       const result = await this.#client.im.message.create({
         params: { receive_id_type: "chat_id" },
         data: {
           receive_id: request.chatId,
-          msg_type: "text",
-          content: JSON.stringify({ text: request.content }),
+          msg_type: "post",
+          content: buildPostContent(request.content),
           uuid: request.uuid,
         },
       });

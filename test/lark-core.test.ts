@@ -6,7 +6,7 @@ import {
   MAX_BINDING_FAILURES_PER_WINDOW,
 } from "../src/application/lark-binding-token-store.js";
 import { normalizeBindingCode } from "../src/application/lark-message-router.js";
-import { LarkOutbound, MAX_OUTBOUND_CHUNK_BYTES } from "../src/application/lark-outbound.js";
+import { LarkOutbound } from "../src/application/lark-outbound.js";
 
 test("binding code format is WST- + 6 chars from the non-confusable alphabet", () => {
   let ms = 1000;
@@ -106,20 +106,6 @@ test("normalizeBindingCode trims, uppercases and drops spaces", () => {
   assert.equal(normalizeBindingCode("  wst-8f3k2q  "), "WST-8F3K2Q");
   assert.equal(normalizeBindingCode("wst 8f 3k 2q"), "WST-8F3K2Q");
   assert.equal(normalizeBindingCode(" hello "), null);
-});
-
-test("outbound chunking splits by byte budget without cutting multibyte characters", () => {
-  const outbound = new LarkOutbound({
-    client: { sendMessage: async () => ({ status: "sent" }) },
-  });
-  const text = "中".repeat(MAX_OUTBOUND_CHUNK_BYTES + 10);
-  const chunks = outbound.chunkText(text);
-  assert.ok(chunks.length > 1);
-  for (const chunk of chunks) {
-    assert.ok(Buffer.byteLength(chunk, "utf8") <= MAX_OUTBOUND_CHUNK_BYTES);
-    assert.ok(Buffer.byteLength(chunk, "utf8") > 0);
-  }
-  assert.equal(chunks.join(""), text);
 });
 
 test("outbound serializes per chat and retries with constant uuid", async () => {

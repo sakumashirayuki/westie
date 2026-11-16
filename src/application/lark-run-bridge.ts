@@ -1,4 +1,5 @@
 import { AgentEventType, type AgentEvent } from "../agent-events.js";
+import { chunkMarkdownForPost } from "../lark/lark-message-content.js";
 import type { RunStreamRecord } from "../run-stream.js";
 import type { RunRegistry, RunActivityEvent } from "./run-registry.js";
 import type { LarkOutbound, OutboundSendRequest } from "./lark-outbound.js";
@@ -149,7 +150,7 @@ export class LarkRunBridge {
         terminal.answer === undefined || terminal.answer.length === 0
           ? "任务已完成。"
           : terminal.answer;
-      const chunks = this.#outbound.chunkText(content);
+      const chunks = chunkMarkdownForPost(content);
       if (chunks.length === 1) {
         await this.#outbound.enqueue({
           chatId,
@@ -159,6 +160,7 @@ export class LarkRunBridge {
         return;
       }
       for (const [index, chunk] of chunks.entries()) {
+        // 分片序号后缀只有几十字节，切片预算的固定开销已按最长标识预留余量。
         await this.#outbound.enqueue({
           chatId,
           content: `${chunk}\n（${index + 1}/${chunks.length}）`,

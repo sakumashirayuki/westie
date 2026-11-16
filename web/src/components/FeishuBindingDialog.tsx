@@ -133,7 +133,7 @@ export function FeishuBindingDialog({
               </button>
               <button
                 type="button"
-                className={smallButtonClasses}
+                className={`min-w-[104px] ${primaryButtonClasses}`}
                 disabled={submitting}
                 onClick={() => void lark.issue()}
               >
@@ -164,7 +164,7 @@ export function FeishuBindingDialog({
           {state.status === "unbound" && state.expired && (
             <button
               type="button"
-              className={primaryButtonClasses}
+              className={`min-w-[104px] ${primaryButtonClasses}`}
               onClick={() => void lark.issue()}
             >
               重新生成绑定码
