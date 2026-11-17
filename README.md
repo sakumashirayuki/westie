@@ -99,3 +99,7 @@ npm run desktop:pack    # 生成 arm64 .app 和 .dmg
 - [Agent 运行机制](./docs/agent-runtime.md)：运行限制、模型协议、上下文和代码结构。
 - [macOS 桌面版](./docs/macos-desktop.md)：打包、用户目录、配置和生命周期。
 - [全部文档](./docs/README.md)：运行边界、SSE 协议和架构决策等。
+
+## 后续规划
+
+- [ ] 基于 worktree 的 sub-agent 写隔离：给需要写隔离的 sub agent 分配独立 Git worktree，消除并发写同一文件的冲突。
