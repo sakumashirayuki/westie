@@ -103,4 +103,5 @@ npm run desktop:pack    # 生成 arm64 .app 和 .dmg
 ## 后续规划
 
 - [ ] 基于 worktree 的 sub-agent 写隔离：给需要写隔离的 sub agent 分配独立 Git worktree，消除并发写同一文件的冲突。
+- [ ] 上下文投影计算优化：`buildContext` 复用同一次 `estimateRequestBytes`；缓存工具 schema 的序列化字节；增量维护 transcript 字节，避免每个 step 对全量 transcript 做 Zod 校验与 JSON 序列化。
 - [ ] LLM 推理前缀缓存命中率优化：当前只计量命中率，目标是主动提升前缀缓存命中、降低重复输入 token 计费。
