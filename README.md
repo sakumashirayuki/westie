@@ -103,3 +103,4 @@ npm run desktop:pack    # 生成 arm64 .app 和 .dmg
 ## 后续规划
 
 - [ ] 基于 worktree 的 sub-agent 写隔离：给需要写隔离的 sub agent 分配独立 Git worktree，消除并发写同一文件的冲突。
+- [ ] LLM 推理前缀缓存命中率优化：当前只计量命中率，目标是主动提升前缀缓存命中、降低重复输入 token 计费。
