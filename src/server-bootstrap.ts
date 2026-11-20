@@ -16,6 +16,7 @@ import { InMemoryWorkspaceGrantStore } from "./application/workspace-grant-store
 import { InMemoryToolGrantStore } from "./application/tool-grant-store.js";
 import { RunSteeringQueue } from "./application/run-steering-queue.js";
 import { RunRegistry } from "./application/run-registry.js";
+import { createLarkBridge } from "./lark/lark-bridge.js";
 import { AgentController } from "./http/agent-controller.js";
 import {
   initializeSqliteSchema,
@@ -194,6 +195,16 @@ export async function startAgentServer(
     const runRegistry = new RunRegistry({
       runService: conversationRunService,
     });
+    // 飞书渠道的装配、入站协议解析与启停时序都收敛在 LarkBridge 门面内。
+    const larkBridge = createLarkBridge({
+      config,
+      database,
+      conversationService,
+      conversationStore,
+      runRegistry,
+      steeringQueue,
+    });
+    await larkBridge.start();
     const controller = new AgentController({
       conversationService,
       conversationRunService,
@@ -227,6 +238,8 @@ export async function startAgentServer(
         fullAccessAvailable: isLoopbackBindHost(config.host),
         probe: probeMcpServer,
       }),
+      larkBindingRoutes: larkBridge.bindingRoutes,
+      larkBindingStore: larkBridge.bindingStore,
     });
     const server = createAgentServer(controller);
 
@@ -243,24 +256,27 @@ export async function startAgentServer(
     }`;
     console.log(`Agent SSE server listening on ${url}`);
 
-    // 幂等关闭：先停接新连接，再取消 Run、关连接、关库、等 MCP pool 退出。
+    // 幂等关闭：先停接新连接，再由飞书门面停收事件、取消 Run、停出站泵，
+    // 最后关残留连接、关库、等 MCP pool 退出。
     const shutdown = async (): Promise<void> => {
-      // 1. 停止接受新连接（不等待其回调：SSE 长连接不会自己结束）；
-      // 2. 取消运行中的 Run 并等它们落库（上限 10 秒）；
-      // 3. 结束残留 SSE 连接；4. 关库、等 MCP pool 关闭。
+      // server.close 只停止接受新连接，已建立的 SSE 连接保留到门面关停结束。
       const stopped = new Promise<void>((resolve) => {
         server.close(() => resolve());
       });
-      await new Promise<void>((resolve) => {
-        const timeout = setTimeout(resolve, 10_000);
-        timeout.unref();
-        runRegistry.cancelAll("Agent service is shutting down.").then(
-          () => {
-            clearTimeout(timeout);
-            resolve();
-          },
-        );
-      });
+      await larkBridge.shutdown(() =>
+        // 取消运行中的 Run 并等它们落库（上限 10 秒）；飞书启动的 Run 一并被取消，
+        // 终态事件推动出站泵把取消/结果通知放入出站队列。
+        new Promise<void>((resolve) => {
+          const timeout = setTimeout(resolve, 10_000);
+          timeout.unref();
+          runRegistry.cancelAll("Agent service is shutting down.").then(
+            () => {
+              clearTimeout(timeout);
+              resolve();
+            },
+          );
+        }),
+      );
       server.closeAllConnections();
       try {
         await stopped;

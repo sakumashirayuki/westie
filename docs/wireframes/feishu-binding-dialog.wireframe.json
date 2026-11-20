@@ -1,0 +1,352 @@
+{
+  "name": "Feishu Binding Dialog",
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "root": {
+    "name": "页面",
+    "direction": "horizontal",
+    "padding": 24,
+    "gap": 24,
+    "children": [
+      {
+        "name": "Westie 应用",
+        "direction": "horizontal",
+        "grow": true,
+        "children": [
+          {
+            "name": "侧栏",
+            "direction": "vertical",
+            "width": 288,
+            "padding": 16,
+            "gap": 12,
+            "children": [
+              {
+                "name": "westie",
+                "type": "text",
+                "variant": "heading",
+                "height": 40
+              },
+              {
+                "name": "＋ 新建会话",
+                "type": "button",
+                "height": 40
+              },
+              {
+                "name": "项目",
+                "type": "text",
+                "variant": "caption",
+                "height": 16
+              },
+              {
+                "name": "项目 A",
+                "direction": "vertical",
+                "gap": 8,
+                "children": [
+                  {
+                    "name": "▾ my-agent-harness   ＋",
+                    "type": "text",
+                    "height": 24
+                  },
+                  {
+                    "name": "会话 1（已绑定飞书）",
+                    "direction": "vertical",
+                    "gap": 4,
+                    "children": [
+                      {
+                        "name": "● 实现评测能力",
+                        "type": "link",
+                        "height": 32
+                      },
+                      {
+                        "name": "Workspace Sandbox · [飞书]已绑定 · ⋯",
+                        "type": "text",
+                        "variant": "caption",
+                        "height": 32
+                      }
+                    ]
+                  },
+                  {
+                    "name": "会话 2",
+                    "direction": "vertical",
+                    "gap": 4,
+                    "children": [
+                      {
+                        "name": "● 会话重命名",
+                        "type": "link",
+                        "height": 32
+                      },
+                      {
+                        "name": "Workspace Sandbox · ⋯",
+                        "type": "text",
+                        "variant": "caption",
+                        "height": 32
+                      }
+                    ]
+                  },
+                  {
+                    "name": "会话 3",
+                    "direction": "vertical",
+                    "gap": 4,
+                    "children": [
+                      {
+                        "name": "排查启动问题",
+                        "type": "link",
+                        "height": 32
+                      },
+                      {
+                        "name": "Workspace Sandbox · ⋯",
+                        "type": "text",
+                        "variant": "caption",
+                        "height": 32
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "name": "分隔线",
+                "type": "divider"
+              },
+              {
+                "name": "MCP 服务器",
+                "type": "link",
+                "height": 32
+              }
+            ]
+          },
+          {
+            "name": "会话区域",
+            "direction": "vertical",
+            "grow": true,
+            "padding": 24,
+            "gap": 16,
+            "children": [
+              {
+                "name": "实现评测能力 · my-agent-harness · feat/evaluation · Workspace Sandbox",
+                "type": "text",
+                "height": 32
+              },
+              {
+                "name": "工作目录：<项目根目录>/evaluation",
+                "type": "text",
+                "variant": "caption",
+                "height": 16
+              },
+              {
+                "name": "分隔线",
+                "type": "divider"
+              },
+              {
+                "name": "弹窗遮罩层",
+                "direction": "vertical",
+                "grow": true,
+                "justify": "center",
+                "align": "center",
+                "children": [
+                  {
+                    "name": "弹窗 · 未绑定",
+                    "type": "card",
+                    "direction": "vertical",
+                    "width": 440,
+                    "padding": 24,
+                    "gap": 16,
+                    "children": [
+                      {
+                        "name": "绑定飞书单聊",
+                        "type": "text",
+                        "variant": "heading",
+                        "height": 32
+                      },
+                      {
+                        "name": "① 在飞书中搜索机器人「Westie」，打开与它的单聊",
+                        "type": "text",
+                        "height": 24
+                      },
+                      {
+                        "name": "② 向机器人发送下面的绑定码完成授权",
+                        "type": "text",
+                        "height": 24
+                      },
+                      {
+                        "name": "绑定码输入区",
+                        "type": "card",
+                        "direction": "vertical",
+                        "padding": 16,
+                        "gap": 8,
+                        "children": [
+                          {
+                            "name": "WST-8F3K2Q",
+                            "type": "text",
+                            "variant": "display",
+                            "height": 48
+                          },
+                          {
+                            "name": "一次性 · 10 分钟内有效 · 仅授权当前会话",
+                            "type": "text",
+                            "variant": "caption",
+                            "height": 16
+                          }
+                        ]
+                      },
+                      {
+                        "name": "弹窗操作",
+                        "direction": "horizontal",
+                        "gap": 16,
+                        "align": "center",
+                        "children": [
+                          {
+                            "name": "复制绑定码",
+                            "type": "button",
+                            "height": 40
+                          },
+                          {
+                            "name": "重新生成（旧码立即失效）",
+                            "type": "link",
+                            "height": 32
+                          }
+                        ]
+                      },
+                      {
+                        "name": "绑定成功前可关闭窗口，绑定码在有效期内仍然有效。",
+                        "type": "text",
+                        "variant": "caption",
+                        "height": 24
+                      },
+                      {
+                        "name": "分隔线",
+                        "type": "divider"
+                      },
+                      {
+                        "name": "弹窗底部",
+                        "direction": "horizontal",
+                        "justify": "flex-end",
+                        "children": [
+                          {
+                            "name": "关闭",
+                            "type": "link",
+                            "height": 32
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "状态列",
+        "direction": "vertical",
+        "width": 320,
+        "gap": 16,
+        "children": [
+          {
+            "name": "弹窗的其他状态",
+            "type": "text",
+            "variant": "heading",
+            "height": 32
+          },
+          {
+            "name": "状态 · 已绑定",
+            "type": "card",
+            "direction": "vertical",
+            "padding": 16,
+            "gap": 8,
+            "children": [
+              {
+                "name": "已绑定飞书单聊",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "单聊：你 ↔ Westie 助手",
+                "type": "text",
+                "variant": "caption",
+                "height": 16
+              },
+              {
+                "name": "绑定时间：11月5日 17:20",
+                "type": "text",
+                "variant": "caption",
+                "height": 16
+              },
+              {
+                "name": "分隔线",
+                "type": "divider"
+              },
+              {
+                "name": "操作行",
+                "direction": "horizontal",
+                "justify": "flex-end",
+                "children": [
+                  {
+                    "name": "解除绑定",
+                    "type": "link",
+                    "height": 32
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "状态 · 绑定码已过期",
+            "type": "card",
+            "direction": "vertical",
+            "padding": 16,
+            "gap": 8,
+            "children": [
+              {
+                "name": "绑定码已过期",
+                "type": "text",
+                "height": 24
+              },
+              {
+                "name": "旧码 WST-8F3K2Q 已失效，请重新生成",
+                "type": "text",
+                "variant": "caption",
+                "height": 32
+              },
+              {
+                "name": "操作行",
+                "direction": "horizontal",
+                "justify": "flex-end",
+                "children": [
+                  {
+                    "name": "重新生成绑定码",
+                    "type": "button",
+                    "height": 40
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "name": "入口说明",
+            "type": "card",
+            "direction": "vertical",
+            "padding": 16,
+            "gap": 8,
+            "children": [
+              {
+                "name": "入口：会话行 ⋯ 菜单 →「绑定飞书单聊」",
+                "type": "text",
+                "variant": "caption",
+                "height": 32
+              },
+              {
+                "name": "已绑定的会话在侧栏显示 [飞书] 标记",
+                "type": "text",
+                "variant": "caption",
+                "height": 32
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+}
