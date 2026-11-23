@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { createServer } from "node:http";
 import { mkdtemp, realpath, rm } from "node:fs/promises";
+import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
@@ -48,6 +50,39 @@ test("listening on port 0 returns a reachable url and close is idempotent", asyn
     await assert.rejects(fetch(`${server.url}/v1/agent/conversations`));
     openDatabase(join(directory, "agent.sqlite")).close();
   } finally {
+    await server?.close();
+    await rm(directory, { recursive: true, force: true });
+  }
+});
+
+test("listen failure tears down the Lark bridge before closing the database", async (t) => {
+  // 只接管 interval：飞书桥的 purge 定时器在装配阶段就建立，listen 失败路径
+  // 必须通过 shutdown 清掉它，否则快进后会在已关闭的数据库上执行 purge。
+  // mock setInterval 时 clearInterval 会被配对接管，apis 不接受 clear* 条目。
+  t.mock.timers.enable({ apis: ["setInterval"] });
+  const directory = await prepareEnvironment();
+
+  const blocker = createServer();
+  await new Promise<void>((resolve) => blocker.listen(0, "127.0.0.1", resolve));
+  const { port } = blocker.address() as AddressInfo;
+  let server: RunningAgentServer | undefined;
+  try {
+    await assert.rejects(
+      startAgentServer({
+        port,
+        sandboxRunnerFactory: async () => new HostSandboxRunner(),
+        hostDirectoryPicker: pickWorkspace(directory),
+      }),
+      /EADDRINUSE/,
+    );
+
+    // 定时器已随桥关停：快进超过一个 purge 周期也不会触碰已关闭的数据库。
+    assert.doesNotThrow(() => t.mock.timers.tick(61 * 60 * 1000));
+    // 数据库已正常关闭，文件可以重新打开。
+    openDatabase(join(directory, "agent.sqlite")).close();
+  } finally {
+    t.mock.timers.reset();
+    await new Promise<void>((resolve) => blocker.close(() => resolve()));
     await server?.close();
     await rm(directory, { recursive: true, force: true });
   }

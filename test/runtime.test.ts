@@ -24,8 +24,14 @@ test("registers the default tools without duplicate names", async (t) => {
   const workspace = await mkdtemp(join(tmpdir(), "agent-runtime-"));
   t.after(() => rm(workspace, { recursive: true, force: true }));
 
+  // 用假 runner 替代 Seatbelt，仅验证工具装配与去重。
   const tools = await createDefaultTools(workspace, {
     webSearchApiKey: "test-tavily-key",
+    sandboxRunner: {
+      async run() {
+        return { exitCode: 0, stdout: "", stderr: "" };
+      },
+    },
   });
 
   assert.deepEqual(

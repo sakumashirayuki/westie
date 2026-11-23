@@ -11,6 +11,7 @@ import { ProjectOpenDialog } from "./components/ProjectOpenDialog";
 import { ConversationComposer } from "./components/ConversationComposer";
 import { ConversationSidebarPanel } from "./components/ConversationSidebarPanel";
 import { ConversationTurn } from "./components/ConversationTurn";
+import { FeishuBindingDialog } from "./components/FeishuBindingDialog";
 import { ScrollToBottomArea } from "./components/ScrollToBottomArea";
 import { McpSettingsDialog } from "./components/McpSettingsDialog";
 import { PendingInteractionDock } from "./components/PendingInteractionDock";
@@ -25,6 +26,8 @@ import { useConversationRun } from "./hooks/useConversationRun";
 import { useRunActivity } from "./hooks/useRunActivity";
 import { useMcpSettings } from "./hooks/useMcpSettings";
 import { useProjectOpen } from "./hooks/useProjectOpen";
+import { useLarkBinding } from "./hooks/useLarkBinding";
+import { conversationDisplayName } from "./components/conversation-display-name";
 import { buildOpenRequest } from "./project-open-state";
 import { ArchivedPage } from "./components/ArchivedPage";
 import type { ConversationDetail } from "./run-client";
@@ -57,6 +60,12 @@ function ConversationPage() {
   const mcp = useMcpSettings();
   // 删除确认弹窗开合由侧栏容器持有，这里同步一份用于禁用项目打开等操作。
   const [deletionOpen, setDeletionOpen] = useState(false);
+  // 飞书绑定弹窗的目标会话、能力开关与状态机都内聚在 hook 内；绑定关系变化时
+  // 本地同步列表徽标，解绑后无需等待下次列表刷新。
+  const lark = useLarkBinding({
+    onBindingChange: (conversationId, bound) =>
+      catalog.setLarkBound(conversationId, bound),
+  });
   const projectOpen = useProjectOpen({
     isBlocked: () => deletionOpen,
     onOpened: (conversation) => switchTo(conversation),
@@ -111,6 +120,7 @@ function ConversationPage() {
             runActivities={runActivity.activities}
             isRunActive={(id) => runActivity.activities.has(id)}
             newConversationDisabled={projectDialogOpen}
+            onBindLark={lark.capabilityEnabled ? lark.open : undefined}
             onNewConversation={() => void projectOpen.inspectDirectory()}
             activeNav={mcp.state.status === "closed" ? undefined : "mcp"}
             onOpenMcpSettings={mcp.open}
@@ -247,6 +257,15 @@ function ConversationPage() {
               onRespond={run.respond}
               onSelectFile={run.selectFile}
             />
+
+            {lark.target !== null && lark.capabilityEnabled && (
+              <FeishuBindingDialog
+                open={lark.state.status !== "loading"}
+                conversationName={conversationDisplayName(lark.target)}
+                lark={lark}
+                onClose={lark.close}
+              />
+            )}
 
             <ConversationComposer
               input={run.input}

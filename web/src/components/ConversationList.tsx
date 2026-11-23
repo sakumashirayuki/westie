@@ -52,6 +52,7 @@ export function ConversationList({
   onRename,
   onArchive,
   onDelete,
+  onBindLark,
   onLoadMore,
   onRetry,
 }: {
@@ -69,6 +70,7 @@ export function ConversationList({
   onRename: (conversation: ConversationSummary) => void;
   onArchive: (conversation: ConversationSummary) => void;
   onDelete: (conversation: ConversationSummary) => void;
+  onBindLark?: (conversation: ConversationSummary) => void;
   onLoadMore: () => void;
   onRetry: () => void;
 }) {
@@ -180,6 +182,7 @@ export function ConversationList({
                         onRename={onRename}
                         onArchive={onArchive}
                         onDelete={onDelete}
+                        onBindLark={onBindLark}
                       />
                     ))}
                   </div>
@@ -220,6 +223,7 @@ function ConversationRow({
   onRename,
   onArchive,
   onDelete,
+  onBindLark,
 }: {
   conversation: ConversationSummary;
   selected: boolean;
@@ -231,6 +235,7 @@ function ConversationRow({
   onRename: (conversation: ConversationSummary) => void;
   onArchive: (conversation: ConversationSummary) => void;
   onDelete: (conversation: ConversationSummary) => void;
+  onBindLark?: (conversation: ConversationSummary) => void;
 }) {
   const runningHere = runActivity !== undefined && runActivity.state === "running";
   const awaitingHere =
@@ -257,6 +262,17 @@ function ConversationRow({
         ? disabledReason("当前有其他操作进行中")
         : {}),
     },
+    ...(onBindLark === undefined
+      ? []
+      : [
+          {
+            label: "绑定飞书单聊",
+            onSelect: () => onBindLark(target),
+            ...(busyReason !== undefined
+              ? disabledReason("当前有其他操作进行中")
+              : {}),
+          },
+        ]),
     {
       label: "删除",
       tone: "danger" as const,
@@ -317,6 +333,11 @@ function ConversationRow({
           {formatUpdatedAt(conversation.updatedAt)}
           {" · "}
           {conversation.id.slice(0, 8)}
+          {conversation.larkBound && (
+            <span className="ml-1.5 inline-block rounded bg-[#e7f2ec] px-1.5 py-0.5 font-bold text-[#276c53]">
+              [飞书]已绑定
+            </span>
+          )}
         </time>
       </button>
       <RowActionMenu

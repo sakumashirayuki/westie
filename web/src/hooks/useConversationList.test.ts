@@ -1,10 +1,19 @@
 // @vitest-environment jsdom
-import { act, renderHook } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { UNKNOWN_WORKSPACE_STATUS, type ConversationSummary } from "../run-client";
-import { mergeConversationSummaries } from "./useConversationList";
+import {
+  UNKNOWN_WORKSPACE_STATUS,
+  listConversations,
+  type ConversationSummary,
+} from "../run-client";
+import { mergeConversationSummaries, useConversationList } from "./useConversationList";
 import { useConversationRename } from "./useConversationRename";
+
+vi.mock("../run-client", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../run-client")>();
+  return { ...original, listConversations: vi.fn() };
+});
 
 function summary(
   id: string,
@@ -395,5 +404,52 @@ describe("useConversationRename missing conversation", () => {
     expect(result.current.state).toBeNull();
     expect(onMissing).toHaveBeenCalledWith("gone");
     expect(onRenamed).not.toHaveBeenCalled();
+  });
+});
+
+describe("useConversationList.setLarkBound", () => {
+  it("updates only the target badge and preserves the list order", async () => {
+    const a = {
+      ...summary("a", "2026-03-03T00:00:00.000Z"),
+      larkBound: false,
+    };
+    const b = {
+      ...summary("b", "2026-02-02T00:00:00.000Z"),
+      larkBound: true,
+    };
+    vi.mocked(listConversations).mockResolvedValue({
+      items: [a, b],
+      nextCursor: null,
+    });
+    const { result } = renderHook(() => useConversationList());
+    await waitFor(() => expect(result.current.state.status).toBe("ready"));
+
+    act(() => result.current.setLarkBound("a", true));
+    expect(result.current.conversations.map((item) => item.larkBound)).toEqual([
+      true,
+      true,
+    ]);
+
+    act(() => result.current.setLarkBound("b", false));
+    expect(
+      result.current.conversations.map((item) => [item.id, item.larkBound]),
+    ).toEqual([
+      ["a", true],
+      ["b", false],
+    ]);
+  });
+
+  it("ignores badge updates for conversations already removed from the list", async () => {
+    const a = summary("a", "2026-03-03T00:00:00.000Z");
+    vi.mocked(listConversations).mockResolvedValue({
+      items: [a],
+      nextCursor: null,
+    });
+    const { result } = renderHook(() => useConversationList());
+    await waitFor(() => expect(result.current.state.status).toBe("ready"));
+
+    act(() => result.current.remove("a"));
+    act(() => result.current.setLarkBound("a", true));
+    expect(result.current.conversations).toHaveLength(0);
   });
 });

@@ -9,6 +9,8 @@ import type { RunSteeringQueue } from "../application/run-steering-queue.js";
 import type { HostFilePicker } from "../infrastructure/host-file-picker.js";
 import { ConversationItemRoutes } from "./conversation-item-routes.js";
 import { ConversationListRoutes } from "./conversation-list-routes.js";
+import { LarkBindingRoutes } from "./lark-binding-routes.js";
+import type { LarkBindingStore } from "../infrastructure/sqlite/lark-binding-store.js";
 import {
   defineRoute,
   type ParamRouteHandler,
@@ -43,6 +45,11 @@ const WORKTREE_OPERATION_PATH =
 const CONVERSATION_PATH = /^\/v1\/agent\/conversations\/([^/]+)$/;
 const CONVERSATION_ARCHIVE_PATH =
   /^\/v1\/agent\/conversations\/([^/]+):archive$/;
+const LARK_BINDING_CODE_PATH =
+  /^\/v1\/agent\/conversations\/([^/]+)\/lark-binding\/code$/;
+const LARK_BINDING_PATH =
+  /^\/v1\/agent\/conversations\/([^/]+)\/lark-binding$/;
+const LARK_CAPABILITY_PATH = "/v1/agent/lark/capability";
 const CONVERSATION_RUN_PATH =
   /^\/v1\/agent\/conversations\/([^/]+)\/runs:stream$/;
 const INTERACTION_RESPONSE_PATH =
@@ -80,6 +87,10 @@ export interface AgentControllerOptions {
   readonly projectWorkspaceRoutes?: ProjectWorkspaceRoutes;
   /** 创建操作日志查询接口；缺省时返回 404。 */
   readonly conversationOpenService?: ConversationOpenService;
+  /** 飞书绑定接口；缺省时能力查询返回 false、变更接口返回 501。 */
+  readonly larkBindingRoutes?: LarkBindingRoutes;
+  /** 会话列表 / 详情装饰 `larkBound` 字段的绑定查询。 */
+  readonly larkBindingStore?: LarkBindingStore;
 }
 export class AgentController {
   readonly #conversationItemRoutes: ConversationItemRoutes;
@@ -96,6 +107,8 @@ export class AgentController {
   readonly #conversationRunSteerRoute: ConversationRunSteerRoute;
   readonly #conversationArchiveRoute: ConversationArchiveRoute;
   readonly #runActivityRoute: RunActivityRoute;
+  readonly #larkBindingRoutes: LarkBindingRoutes | undefined;
+  readonly #larkBindingStore: LarkBindingStore | undefined;
   /**
    * 带路径参数的端点：`defineRoute` 只判断方法与 Origin，参数由 `#guarded` 在
    * 这些判断之后才交给业务 `handle`。各 `handle` 不再自行校验方法与 Origin。
@@ -127,6 +140,8 @@ export class AgentController {
     this.#conversationRunSteerRoute = new ConversationRunSteerRoute(options);
     this.#conversationArchiveRoute = new ConversationArchiveRoute(options);
     this.#runActivityRoute = new RunActivityRoute(options);
+    this.#larkBindingRoutes = options.larkBindingRoutes;
+    this.#larkBindingStore = options.larkBindingStore;
     this.#interactionRoutes = new InteractionRoutes(options);
     this.#mcpConfigRoutes = options.mcpConfigRoutes;
 
@@ -414,6 +429,36 @@ export class AgentController {
       return;
     }
 
+    if (pathname === LARK_CAPABILITY_PATH) {
+      const routes = this.options.larkBindingRoutes;
+      await (routes === undefined
+        ? writeJson(response, 200, { enabled: false })
+        : routes.capability(request, response));
+      return;
+    }
+
+    const larkBindingCodeMatch = LARK_BINDING_CODE_PATH.exec(pathname);
+    if (larkBindingCodeMatch !== null) {
+      const routes = this.options.larkBindingRoutes;
+      await (routes === undefined
+        ? writeBridgeDisabledRoute(response)
+        : routes.issueCode(request, response));
+      return;
+    }
+
+    const larkBindingMatch = LARK_BINDING_PATH.exec(pathname);
+    if (larkBindingMatch !== null) {
+      const routes = this.options.larkBindingRoutes;
+      if (routes === undefined) {
+        writeBridgeDisabledRoute(response);
+      } else if (request.method === "DELETE") {
+        await routes.unbind(request, response);
+      } else {
+        await routes.getBinding(request, response);
+      }
+      return;
+    }
+
     if (pathname === RUNS_WATCH_PATH) {
       await this.#guarded.runsWatch(request, response);
       return;
@@ -555,6 +600,7 @@ function isAgentApiPath(pathname: string): boolean {
   return pathname === CONVERSATIONS_PATH ||
     pathname === SELECT_WORKSPACE_PATH ||
     pathname === ROUTE_OPENED_CONVERSATION_PATH ||
+    pathname === "/v1/agent/lark/capability" ||
     pathname === "/v1/agent/projects/worktrees" ||
     pathname === "/v1/agent/projects/branches" ||
     WORKTREE_OPERATION_PATH.test(pathname) ||
@@ -563,6 +609,14 @@ function isAgentApiPath(pathname: string): boolean {
     pathname === RUNS_WATCH_PATH ||
     pathname === MCP_CONFIG_PATH ||
     pathname === MCP_CONFIG_PROBE_PATH;
+}
+
+function writeBridgeDisabledRoute(response: ServerResponse): void {
+  writeHttpError(response, {
+    status: 501,
+    code: "LARK_BRIDGE_DISABLED",
+    message: "The Lark bridge is not configured.",
+  });
 }
 
 function parsePathname(url: string | undefined): string | null {

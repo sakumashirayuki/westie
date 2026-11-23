@@ -11,6 +11,7 @@ import {
   ConversationBusyError,
   ConversationNotFoundError,
 } from "../domain/conversation.js";
+import type { LarkBindingStore } from "../infrastructure/sqlite/lark-binding-store.js";
 import {
   writeConversationNotFound,
   writeHttpError,
@@ -27,6 +28,8 @@ const renameRequestSchema = z.strictObject({
 export interface ConversationItemRoutesOptions {
   readonly conversationService: ConversationService;
   readonly allowedOrigin?: string;
+  /** 详情装饰 `larkBound` 字段；缺省时不查绑定（false）。 */
+  readonly larkBindingStore?: LarkBindingStore;
 }
 
 /**
@@ -81,11 +84,13 @@ export class ConversationItemRoutes {
     conversationId: string,
   ): Promise<void> {
     try {
-      writeJson(
-        response,
-        200,
-        await this.options.conversationService.getConversation(conversationId),
+      const conversation = await this.options.conversationService.getConversation(
+        conversationId,
       );
+      const larkBound = this.options.larkBindingStore?.findByConversationId(
+        conversationId,
+      ) !== undefined;
+      writeJson(response, 200, { ...conversation, larkBound });
     } catch (error) {
       if (error instanceof ConversationNotFoundError) {
         writeConversationNotFound(response);
@@ -109,14 +114,15 @@ export class ConversationItemRoutes {
       return;
     }
     try {
-      writeJson(
-        response,
-        200,
-        await this.options.conversationService.renameConversation(
-          conversationId,
-          parsed.data.title,
-        ),
+      const renamed = await this.options.conversationService.renameConversation(
+        conversationId,
+        parsed.data.title,
       );
+      // 与 GET 详情保持同一装饰口径，避免前端用响应整体替换列表条目后绑定徽标消失。
+      const larkBound = this.options.larkBindingStore?.findByConversationId(
+        conversationId,
+      ) !== undefined;
+      writeJson(response, 200, { ...renamed, larkBound });
     } catch (error) {
       this.#writeConversationError(response, error);
     }
