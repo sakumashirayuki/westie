@@ -25,6 +25,8 @@ export class LarkRunBridge {
   readonly #registry: RunRegistry;
   readonly #outbound: LarkOutbound;
   readonly #notifiedAwaiting = new Set<string>();
+  /** 每个 Run 进入 awaiting_interaction 的场次序号，用于区分历次提醒的幂等 uuid。 */
+  readonly #awaitEpisodes = new Map<string, number>();
   readonly #pumps = new Map<string, Promise<void>>();
   #activityOff: (() => void) | undefined;
 
@@ -85,11 +87,13 @@ export class LarkRunBridge {
     }
     if (this.#notifiedAwaiting.has(event.runId)) return;
     this.#notifiedAwaiting.add(event.runId);
+    const episode = (this.#awaitEpisodes.get(event.runId) ?? 0) + 1;
+    this.#awaitEpisodes.set(event.runId, episode);
     void this.#outbound.enqueue({
       chatId: this.#chatIdOf(event.runId),
       content:
         "任务需要批准：请回到 Westie 网页界面批准工具操作，任务正在等待。",
-      uuid: `westie-await-${event.runId}`,
+      uuid: `westie-await-${event.runId}-${episode}`,
     });
   }
 
@@ -111,6 +115,9 @@ export class LarkRunBridge {
       const iterable = this.#registry.subscribe(runId, 0, controller.signal);
       for await (const record of iterable) {
         if (isEventRecord(record) === false) continue;
+        // 子 Run 事件带 subAgent 标记并入父 Run 日志；飞书通知只认父 Run 自身事件，
+        // 否则子 Run 的回答会覆盖最终回答、子 Run 终态会提前触发并抢占终态通知的 uuid。
+        if (record.subAgent !== undefined) continue;
         const event = record.event;
         if (event.type === AgentEventType.AnswerCompleted) {
           lastAnswer = event.data.answer;
@@ -132,6 +139,7 @@ export class LarkRunBridge {
     } finally {
       this.#knownChats.delete(runId);
       this.#notifiedAwaiting.delete(runId);
+      this.#awaitEpisodes.delete(runId);
       this.#pumps.delete(runId);
       controller.abort();
     }

@@ -7,6 +7,7 @@ import type { RunSteeringQueue } from "./run-steering-queue.js";
 import type { LarkRunBridge } from "./lark-run-bridge.js";
 import type { LarkOutbound } from "./lark-outbound.js";
 import {
+  ConversationArchivedError,
   ConversationBusyError,
   ConversationNotFoundError,
   SteeringQueueFullError,
@@ -239,6 +240,16 @@ export class LarkMessageRouter {
         if (error instanceof ConversationBusyError) {
           // 忙闲竞态：判定空闲后网页先开了 Run，改走追加消息。
           await this.#steer(context, binding.conversationId, true);
+          return;
+        }
+        if (error instanceof ConversationArchivedError) {
+          // 归档会话只读：不能再开 Run，也不自动解绑，提示用户显式 /unbind。
+          await this.#reply(
+            context.chatId,
+            "该会话已归档，处于只读状态，不能再发起任务。请先发送 /unbind 解绑，再绑定新的会话。",
+            context.messageId,
+            "archived",
+          );
           return;
         }
         if (error instanceof ConversationNotFoundError) {

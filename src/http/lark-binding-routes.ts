@@ -5,7 +5,7 @@ import type { LarkBindingTokenStore } from "../application/lark-binding-token-st
 import type { LarkBindingStore } from "../infrastructure/sqlite/lark-binding-store.js";
 import { ConversationNotFoundError } from "../domain/conversation.js";
 import { writeConversationNotFound, writeHttpError, writeJson } from "./http-response.js";
-import { defineRoute } from "./route.js";
+import { defineRoute, type RouteContext, type RouteHandler } from "./route.js";
 
 export interface LarkBindingRoutesOptions {
   readonly bindingStore: LarkBindingStore;
@@ -25,48 +25,63 @@ export interface LarkBindingRoutesOptions {
  * - 所有写入以数据库约束为最终裁决，返回结果与前端展示一致。
  */
 export class LarkBindingRoutes {
-  constructor(private readonly options: LarkBindingRoutesOptions) {}
+  private readonly options: LarkBindingRoutesOptions;
+  readonly capability: RouteHandler;
+  readonly issueCode: RouteHandler;
+  readonly getBinding: RouteHandler;
+  readonly unbind: RouteHandler;
 
-  readonly capability = defineRoute(
-    {
-      methods: ["GET"],
-      origin: "public",
-      denyMessage: "This origin cannot query Lark capability.",
-      handle: ({ response }) =>
-        writeJson(response, 200, { enabled: this.options.bridgeEnabled }),
-    },
-    {},
-  );
+  constructor(options: LarkBindingRoutesOptions) {
+    this.options = options;
+    // 与 AgentController 同一套 context 构造：未配置 allowedOrigin 时保持空 context。
+    // 路由必须在构造函数体内创建：实例字段初始化器先于参数属性赋值执行，在初始化器
+    // 里读取 this.options 会拿到 undefined（useDefineForClassFields 语义）。
+    const routeContext: RouteContext =
+      options.allowedOrigin === undefined
+        ? {}
+        : { allowedOrigin: options.allowedOrigin };
 
-  readonly issueCode = defineRoute(
-    {
-      methods: ["POST"],
-      origin: "trusted",
-      denyMessage: "This origin cannot issue a Lark binding code.",
-      handle: ({ request, response }) => this.#issueCode(request, response),
-    },
-    {},
-  );
+    this.capability = defineRoute(
+      {
+        methods: ["GET"],
+        origin: "public",
+        denyMessage: "This origin cannot query Lark capability.",
+        handle: ({ response }) =>
+          writeJson(response, 200, { enabled: this.options.bridgeEnabled }),
+      },
+      routeContext,
+    );
 
-  readonly getBinding = defineRoute(
-    {
-      methods: ["GET"],
-      origin: "public",
-      denyMessage: "This origin cannot read a Lark binding.",
-      handle: ({ request, response }) => this.#getBinding(request, response),
-    },
-    {},
-  );
+    this.issueCode = defineRoute(
+      {
+        methods: ["POST"],
+        origin: "trusted",
+        denyMessage: "This origin cannot issue a Lark binding code.",
+        handle: ({ request, response }) => this.#issueCode(request, response),
+      },
+      routeContext,
+    );
 
-  readonly unbind = defineRoute(
-    {
-      methods: ["DELETE"],
-      origin: "trusted",
-      denyMessage: "This origin cannot unbind a Lark chat.",
-      handle: ({ request, response }) => this.#unbind(request, response),
-    },
-    {},
-  );
+    this.getBinding = defineRoute(
+      {
+        methods: ["GET"],
+        origin: "public",
+        denyMessage: "This origin cannot read a Lark binding.",
+        handle: ({ request, response }) => this.#getBinding(request, response),
+      },
+      routeContext,
+    );
+
+    this.unbind = defineRoute(
+      {
+        methods: ["DELETE"],
+        origin: "trusted",
+        denyMessage: "This origin cannot unbind a Lark chat.",
+        handle: ({ request, response }) => this.#unbind(request, response),
+      },
+      routeContext,
+    );
+  }
 
   async #issueCode(
     request: IncomingMessage,

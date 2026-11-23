@@ -60,12 +60,11 @@ export class LarkOutbound {
 
   async #sendWithThrottle(request: OutboundSendRequest): Promise<void> {
     if (this.#abort.signal.aborted) return;
-    const now = this.#options.now?.() ?? Date.now();
+    const now = this.#now();
     const last = this.#lastSendAt.get(request.chatId) ?? 0;
     const wait = Math.max(0, last + OUTBOUND_MIN_INTERVAL_MS - now);
     if (wait > 0) await sleep(wait, this.#abort.signal).catch(() => {});
     if (this.#abort.signal.aborted) return;
-    this.#lastSendAt.set(request.chatId, Date.now());
     await this.#sendWithRetry(request);
   }
 
@@ -79,6 +78,9 @@ export class LarkOutbound {
         content: request.content,
         uuid: request.uuid,
       });
+      // 每次实际尝试后都刷新时间戳：重试成功时下一条消息仍需满足完整最小间隔，
+      // 避免沿用首次尝试前的旧时间戳导致两条消息紧贴发出。
+      this.#lastSendAt.set(request.chatId, this.#now());
       if (outcome.status === "sent") return;
       if (delay === OUTBOUND_RETRY_DELAYS_MS.at(-1)) {
         console.error(JSON.stringify({
@@ -90,6 +92,10 @@ export class LarkOutbound {
         }));
       }
     }
+  }
+
+  #now(): number {
+    return this.#options.now?.() ?? Date.now();
   }
 }
 

@@ -120,3 +120,62 @@ test("realistic markdown with headings, GFM table and code fence stays in one ch
     }) < POST_MESSAGE_REQUEST_LIMIT_BYTES,
   );
 });
+
+/** 断言切片中不存在孤立的高代理或低代理码元。 */
+function assertNoLoneSurrogates(chunks: readonly string[]): void {
+  for (const chunk of chunks) {
+    assert.doesNotMatch(chunk, /[\uD800-\uDBFF](?![\uDC00-\uDFFF])/);
+    assert.doesNotMatch(chunk, /(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/);
+  }
+}
+
+test("a surrogate pair straddling the byte boundary stays inside one chunk", () => {
+  // 单个 emoji 两个码元各计 3 字节、共 6 字节；预算 15 会让旧实现收下第三个
+  // emoji 的高代理却在低代理处断片，两端各留一个孤立代理。
+  const emoji = "😀";
+  const text = emoji.repeat(8);
+  const chunks = chunkMarkdownForPost(text, 15);
+  assert.ok(chunks.length > 1);
+  assert.equal(chunks.join(""), text);
+  assertNoLoneSurrogates(chunks);
+  // 每片恰好容纳两个 emoji（12 字节），代理对不会被拆到两片。
+  assert.deepEqual(chunks, [
+    emoji.repeat(2),
+    emoji.repeat(2),
+    emoji.repeat(2),
+    emoji.repeat(2),
+  ]);
+});
+
+test("a budget smaller than one surrogate pair still emits the whole code point", () => {
+  const text = "😀😀";
+  const chunks = chunkMarkdownForPost(text, 3);
+  assert.deepEqual(chunks, ["😀", "😀"]);
+  assert.equal(chunks.join(""), text);
+  assertNoLoneSurrogates(chunks);
+});
+
+test("newline rollback keeps the emoji following the break in the next chunk", () => {
+  const text = `${"a".repeat(20)}\n${"😀".repeat(6)}`;
+  const chunks = chunkMarkdownForPost(text, 24);
+  assert.equal(chunks.join(""), text);
+  assertNoLoneSurrogates(chunks);
+  assert.ok(chunks[0]!.endsWith("\n"));
+});
+
+test("long markdown mixing CJK, emoji and spaces round-trips without lone surrogates or oversized chunks", () => {
+  const unit = "中文标题 😀 与表格 | 列 A |\n";
+  const text = unit.repeat(3000);
+  const chunks = chunkMarkdownForPost(text);
+  assert.ok(chunks.length > 1);
+  assert.equal(chunks.join(""), text);
+  assertNoLoneSurrogates(chunks);
+  for (const chunk of chunks) {
+    assert.ok(
+      measurePostRequestBytes(chunk, {
+        chatId: PLACEHOLDER_CHAT_ID,
+        uuid: PLACEHOLDER_UUID,
+      }) <= POST_MESSAGE_REQUEST_LIMIT_BYTES,
+    );
+  }
+});

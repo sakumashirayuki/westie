@@ -40,6 +40,52 @@ function createStreamStub(): {
   return { iterable, release: finish };
 }
 
+function createPushableStream(): {
+  iterable: AsyncIterable<unknown>;
+  push: (record: unknown) => void;
+  end: () => void;
+} {
+  const queue: unknown[] = [];
+  const waiters = new Set<(result: IteratorResult<unknown>) => void>();
+  let done = false;
+  const deliver = (result: IteratorResult<unknown>): void => {
+    const waiter = waiters.values().next().value;
+    if (waiter === undefined) {
+      if (!result.done) queue.push(result.value);
+      return;
+    }
+    waiters.delete(waiter);
+    waiter(result);
+  };
+  const iterable: AsyncIterable<unknown> = {
+    [Symbol.asyncIterator]() {
+      return {
+        next: (): Promise<IteratorResult<unknown>> => {
+          const value = queue.shift();
+          if (value !== undefined) {
+            return Promise.resolve({ value, done: false });
+          }
+          if (done) return Promise.resolve({ value: undefined, done: true });
+          return new Promise((resolve) => {
+            waiters.add(resolve);
+          });
+        },
+      };
+    },
+  };
+  return {
+    iterable,
+    push: (record) => deliver({ value: record, done: false }),
+    end: () => {
+      done = true;
+      for (const waiter of waiters) {
+        waiter({ value: undefined, done: true });
+      }
+      waiters.clear();
+    },
+  };
+}
+
 function createRegistryStub(iterable: AsyncIterable<unknown>) {
   const listeners = new Set<ActivityListener>();
   const registry = {
@@ -93,8 +139,18 @@ test("sends one awaiting reminder per awaiting_interaction edge", async () => {
   emit("waiting_sub_agents");
   emit("awaiting_interaction");
 
-  const reminders = sent.filter((item) => item.uuid === "westie-await-run-1");
+  const reminders = sent.filter((item) =>
+    item.uuid.startsWith("westie-await-run-1-"),
+  );
   assert.equal(reminders.length, 3);
+  assert.deepEqual(
+    reminders.map((item) => item.uuid),
+    [
+      "westie-await-run-1-1",
+      "westie-await-run-1-2",
+      "westie-await-run-1-3",
+    ],
+  );
   assert.deepEqual(
     reminders.map((item) => item.chatId),
     ["oc-1", "oc-1", "oc-1"],
@@ -121,7 +177,7 @@ test("does not duplicate the reminder while staying in the same state", async ()
   emit("awaiting_interaction");
 
   assert.equal(
-    sent.filter((item) => item.uuid === "westie-await-run-1").length,
+    sent.filter((item) => item.uuid === "westie-await-run-1-1").length,
     1,
   );
   await bridge.stop(50);
@@ -147,6 +203,56 @@ test("ignores activity events from runs it does not track", async () => {
   assert.equal(sent.length, 0);
   await bridge.stop(50);
   stream.release();
+  await flushMicrotasks();
+});
+
+test("sub-agent events never trigger Lark answers or terminal notifications", async () => {
+  const stream = createPushableStream();
+  const { registry } = createRegistryStub(stream.iterable);
+  const { outbound, sent } = createOutboundSpy();
+  const bridge = new LarkRunBridge({
+    registry: registry as never,
+    outbound: outbound as never,
+  });
+  bridge.register("run-1", "oc-1");
+  await flushMicrotasks();
+
+  const subAgent = { toolCallId: "call-1", parentStep: 1 };
+  // 子 Run 的回答、完成与取消事件都带 subAgent 标记，必须被泵忽略。
+  stream.push({
+    streamSeq: 1,
+    event: { type: "answer.completed", data: { answer: "child answer" } },
+    subAgent,
+  });
+  stream.push({
+    streamSeq: 2,
+    event: { type: "run.completed", data: { steps: 1, stopReason: "final" } },
+    subAgent,
+  });
+  stream.push({
+    streamSeq: 3,
+    event: { type: "run.cancelled", data: {} },
+    subAgent,
+  });
+  // 父 Run 自身的最终回答与终态事件才允许触发飞书通知。
+  stream.push({
+    streamSeq: 4,
+    event: { type: "answer.completed", data: { answer: "parent answer" } },
+  });
+  stream.push({
+    streamSeq: 5,
+    event: { type: "run.completed", data: { steps: 3, stopReason: "final" } },
+  });
+  stream.end();
+  await flushMicrotasks();
+
+  assert.equal(sent.length, 1);
+  assert.deepEqual(sent[0], {
+    chatId: "oc-1",
+    content: "parent answer",
+    uuid: "westie-answer-run-1",
+  });
+  await bridge.stop(50);
   await flushMicrotasks();
 });
 

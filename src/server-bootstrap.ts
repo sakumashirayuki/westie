@@ -16,7 +16,7 @@ import { InMemoryWorkspaceGrantStore } from "./application/workspace-grant-store
 import { InMemoryToolGrantStore } from "./application/tool-grant-store.js";
 import { RunSteeringQueue } from "./application/run-steering-queue.js";
 import { RunRegistry } from "./application/run-registry.js";
-import { createLarkBridge } from "./lark/lark-bridge.js";
+import { createLarkBridge, type LarkBridge } from "./lark/lark-bridge.js";
 import { AgentController } from "./http/agent-controller.js";
 import {
   initializeSqliteSchema,
@@ -81,6 +81,8 @@ export async function startAgentServer(
   const config = loadAgentServerConfig(process.env, workspaceRoot);
   const database = openSqliteDatabase(config.databasePath);
   const conversationStore = new SQLiteConversationStore(database);
+  // 飞书桥在 try 内装配，catch 中需要拿到它做关停，声明提到外层。
+  let larkBridge: LarkBridge | undefined;
 
   try {
     initializeSqliteSchema(database);
@@ -196,7 +198,7 @@ export async function startAgentServer(
       runService: conversationRunService,
     });
     // 飞书渠道的装配、入站协议解析与启停时序都收敛在 LarkBridge 门面内。
-    const larkBridge = createLarkBridge({
+    const bridge = createLarkBridge({
       config,
       database,
       conversationService,
@@ -204,7 +206,8 @@ export async function startAgentServer(
       runRegistry,
       steeringQueue,
     });
-    await larkBridge.start();
+    larkBridge = bridge;
+    await bridge.start();
     const controller = new AgentController({
       conversationService,
       conversationRunService,
@@ -238,8 +241,8 @@ export async function startAgentServer(
         fullAccessAvailable: isLoopbackBindHost(config.host),
         probe: probeMcpServer,
       }),
-      larkBindingRoutes: larkBridge.bindingRoutes,
-      larkBindingStore: larkBridge.bindingStore,
+      larkBindingRoutes: bridge.bindingRoutes,
+      larkBindingStore: bridge.bindingStore,
     });
     const server = createAgentServer(controller);
 
@@ -263,7 +266,7 @@ export async function startAgentServer(
       const stopped = new Promise<void>((resolve) => {
         server.close(() => resolve());
       });
-      await larkBridge.shutdown(() =>
+      await bridge.shutdown(() =>
         // 取消运行中的 Run 并等它们落库（上限 10 秒）；飞书启动的 Run 一并被取消，
         // 终态事件推动出站泵把取消/结果通知放入出站队列。
         new Promise<void>((resolve) => {
@@ -297,6 +300,19 @@ export async function startAgentServer(
       },
     };
   } catch (error) {
+    // listen 失败等启动期错误也必须回收飞书桥：长连接与 purge 定时器在装配阶段
+    // 就已建立，不主动关停会在数据库关闭后继续访问，形成资源泄漏与后台报错。
+    if (larkBridge !== undefined) {
+      await larkBridge.shutdown(async () => {}).catch((shutdownError) => {
+        console.error(JSON.stringify({
+          event: "lark.bridge.shutdown_on_startup_failed",
+          message:
+            shutdownError instanceof Error
+              ? shutdownError.message
+              : String(shutdownError),
+        }));
+      });
+    }
     conversationStore.close();
     throw error;
   }

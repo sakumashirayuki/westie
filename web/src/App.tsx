@@ -60,8 +60,12 @@ function ConversationPage() {
   const mcp = useMcpSettings();
   // 删除确认弹窗开合由侧栏容器持有，这里同步一份用于禁用项目打开等操作。
   const [deletionOpen, setDeletionOpen] = useState(false);
-  // 飞书绑定弹窗的目标会话、能力开关与状态机都内聚在 hook 内。
-  const lark = useLarkBinding();
+  // 飞书绑定弹窗的目标会话、能力开关与状态机都内聚在 hook 内；绑定关系变化时
+  // 本地同步列表徽标，解绑后无需等待下次列表刷新。
+  const lark = useLarkBinding({
+    onBindingChange: (conversationId, bound) =>
+      catalog.setLarkBound(conversationId, bound),
+  });
   const projectOpen = useProjectOpen({
     isBlocked: () => deletionOpen,
     onOpened: (conversation) => switchTo(conversation),

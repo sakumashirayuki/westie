@@ -14,6 +14,7 @@ import {
   openConversation,
   getProjectBranches,
   getProjectWorktrees,
+  unbindLarkChat,
   UNKNOWN_WORKSPACE_STATUS,
   type ConversationDetail,
   type ConversationSummary,
@@ -163,5 +164,39 @@ describe("Feishu binding entry", () => {
     fireEvent.click(screen.getByRole("button", { name: /^beta.*beta/ }));
     await waitFor(() => expect(getConversation).toHaveBeenCalled());
     expect(getLarkCapability).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes the bound badge immediately after unbinding without refetching the list", async () => {
+    vi.mocked(listConversations).mockResolvedValue({
+      items: [{ ...alpha, larkBound: true }, beta],
+      nextCursor: null,
+    });
+    vi.mocked(getLarkBinding).mockResolvedValue({
+      bound: true,
+      createdAt: "2026-01-02T00:00:00.000Z",
+    });
+    render(<MemoryRouter><App /></MemoryRouter>);
+
+    await screen.findByText("[飞书]已绑定");
+
+    fireEvent.pointerDown(
+      await screen.findByRole("button", { name: /会话操作 alpha/ }),
+      { button: 0, ctrlKey: false, pointerId: 1, pointerType: "mouse" },
+    );
+    fireEvent.click(
+      await screen.findByRole("menuitem", { name: /绑定飞书单聊/ }),
+    );
+    await screen.findByText("已绑定飞书单聊");
+
+    const listFetches = vi.mocked(listConversations).mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "解除绑定" }));
+
+    await waitFor(() =>
+      expect(unbindLarkChat).toHaveBeenCalledWith("alpha"),
+    );
+    // 弹窗回到未绑定态，列表徽标靠本地状态同步立即消失，没有重新拉列表。
+    await screen.findByText("尚未生成绑定码。");
+    expect(screen.queryByText("[飞书]已绑定")).toBeNull();
+    expect(listConversations).toHaveBeenCalledTimes(listFetches);
   });
 });

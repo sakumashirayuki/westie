@@ -112,12 +112,20 @@ export function chunkMarkdownForPost(
 function findChunkEnd(text: string, start: number, maxBytes: number): number {
   let budget = maxBytes;
   let end = start;
-  for (; end < text.length; end += 1) {
-    const cost = wireByteCost(text[end]);
+  while (end < text.length) {
+    // emoji 等辅助平面字符占两个 UTF-16 码元（代理对），必须整体计入或整体
+    // 留下，否则切片两端会出现孤立代理，飞书侧渲染成乱码。
+    const span = text.codePointAt(end)! > 0xffff ? 2 : 1;
+    let cost = wireByteCost(text[end]!);
+    if (span === 2) cost += wireByteCost(text[end + 1]!);
     if (budget - cost < 0) break;
     budget -= cost;
+    end += span;
   }
-  if (end <= start) return start + 1;
+  // 预算连第一个码点都装不下时仍要保证切片前进；遇到代理对一次推进两个码元。
+  if (end <= start) {
+    return start + (text.codePointAt(start)! > 0xffff ? 2 : 1);
+  }
   const slice = text.slice(start, end);
   const lastBreak = Math.max(slice.lastIndexOf("\n"), slice.lastIndexOf(" "));
   if (lastBreak >= 0) return start + lastBreak + 1;

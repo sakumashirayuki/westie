@@ -166,3 +166,54 @@ test("enqueue after close drops the message without calling the client", async (
   await outbound.enqueue({ chatId: "oc-1", content: "hi", uuid: "westie-dropped" });
   assert.deepEqual(calls, []);
 });
+
+test("a retried send refreshes the throttle timestamp for the next message", async (t) => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  try {
+    let now = 1_000;
+    let attempts = 0;
+    const client = {
+      sendMessage: async () => {
+        attempts += 1;
+        return attempts === 1
+          ? { status: "failed" as const, code: -1 as const, message: "temp" }
+          : { status: "sent" as const };
+      },
+    };
+    const outbound = new LarkOutbound({ client, now: () => now });
+
+    // 首条消息首次尝试失败，进入 2 秒重试等待。
+    const first = outbound.enqueue({
+      chatId: "oc-1",
+      content: "first",
+      uuid: "westie-1",
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(attempts, 1);
+
+    // 重试触发前把时钟推到 5 秒：重试成功后时间戳应记录为 5000 而非首次尝试前的 1000。
+    now = 5_000;
+    t.mock.timers.tick(2_000);
+    await new Promise((resolve) => setImmediate(resolve));
+    await first;
+    assert.equal(attempts, 2);
+
+    // 50 毫秒后入队第二条：距上次真实发送不足 210ms，必须挂起等待，不能立即发出。
+    now = 5_050;
+    const second = outbound.enqueue({
+      chatId: "oc-1",
+      content: "second",
+      uuid: "westie-2",
+    });
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(attempts, 2, "the next message must wait for the full minimum interval");
+
+    // 补足 160ms 等待后第二条才真正发送。
+    t.mock.timers.tick(160);
+    await new Promise((resolve) => setImmediate(resolve));
+    await second;
+    assert.equal(attempts, 3);
+  } finally {
+    t.mock.timers.reset();
+  }
+});

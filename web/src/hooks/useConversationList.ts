@@ -114,6 +114,18 @@ export function useConversationList(archived = false) {
     );
   }, []);
 
+  /** 飞书绑定 / 解绑成功后本地同步徽标，不触发整列表刷新，排序位置保持不变。 */
+  const setLarkBound = useCallback((conversationId: string, bound: boolean) => {
+    if (removedIdsRef.current.has(conversationId)) return;
+    setConversations((current) =>
+      current.map((conversation) =>
+        conversation.id === conversationId
+          ? { ...conversation, larkBound: bound }
+          : conversation,
+      ),
+    );
+  }, []);
+
   return {
     conversations,
     state,
@@ -123,6 +135,7 @@ export function useConversationList(archived = false) {
     remove,
     removeArchived,
     rename,
+    setLarkBound,
   };
 }
 

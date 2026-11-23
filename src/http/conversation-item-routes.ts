@@ -114,14 +114,15 @@ export class ConversationItemRoutes {
       return;
     }
     try {
-      writeJson(
-        response,
-        200,
-        await this.options.conversationService.renameConversation(
-          conversationId,
-          parsed.data.title,
-        ),
+      const renamed = await this.options.conversationService.renameConversation(
+        conversationId,
+        parsed.data.title,
       );
+      // 与 GET 详情保持同一装饰口径，避免前端用响应整体替换列表条目后绑定徽标消失。
+      const larkBound = this.options.larkBindingStore?.findByConversationId(
+        conversationId,
+      ) !== undefined;
+      writeJson(response, 200, { ...renamed, larkBound });
     } catch (error) {
       this.#writeConversationError(response, error);
     }

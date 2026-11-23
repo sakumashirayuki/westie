@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { LarkMessageRouter } from "../src/application/lark-message-router.js";
 import { LarkBindingTokenStore } from "../src/application/lark-binding-token-store.js";
-import { ConversationBusyError, ConversationNotFoundError, SteeringQueueFullError } from "../src/domain/conversation.js";
+import { ConversationArchivedError, ConversationBusyError, ConversationNotFoundError, SteeringQueueFullError } from "../src/domain/conversation.js";
 import { MAX_STEERING_MESSAGE_BYTES } from "../src/protocol.js";
 
 interface RegistryLike {
@@ -194,6 +194,27 @@ test("ConversationBusyError during start falls back to steering", async () => {
   await h.router.route(p2p("oc-1", "run"));
   assert.equal(h.registry.calls.length, 0);
   assert.match(h.sent.map((item) => item.content).join(" "), /追加消息/);
+});
+
+test("archived conversation gets a read-only guidance reply instead of a silent failure", async () => {
+  const h = makeHarness({
+    store: {
+      findByChatId: () => ({
+        chatId: "oc-1", openId: "ou-1", conversationId: "c1", createdAt: "now",
+      }),
+    },
+    conversationStore: { getActiveRunId: () => undefined },
+    registry: {
+      start: () => {
+        throw new ConversationArchivedError("c1");
+      },
+    },
+  });
+  await h.router.route(p2p("oc-1", "run"));
+  assert.equal(h.registry.calls.length, 0);
+  assert.equal(h.sent.length, 1);
+  assert.match(h.sent[0]!.content, /归档/);
+  assert.match(h.sent[0]!.uuid, /westie-archived-om-1/);
 });
 
 test("steering queue full replies with a clear message", async () => {
