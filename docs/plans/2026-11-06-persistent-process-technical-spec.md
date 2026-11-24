@@ -4,10 +4,10 @@
 
 ## 背景与术语
 
-- **持久进程（persistent service，下称 service）**：由 agent 通过 `service` 工具显式启动、生命周期独立于单次工具调用和 Run、需要显式停止的工作区级进程，典型用途是 `npm run dev` 这类常驻开发服务器。
+- **持久进程（persistent service，下称 service）【本次新增】**：由 agent 通过 `service` 工具显式启动、生命周期独立于单次工具调用和 Run、需要显式停止的工作区级进程，典型用途是 `npm run dev` 这类常驻开发服务器。
 - **工作区（workspace）**：会话固定的 canonical 工作目录，语义与现有 `conversations.workspace_root` 一致。service 属于工作区，同工作区的任意会话（含子 Run）都能看到并控制它。
 - **指纹（fingerprint）**：现有 macOS Seatbelt 收容机制中，由一对 canary 文件刻画的沙箱身份。原生 helper 通过「处于沙箱、可读 allowed canary、不可读 denied canary」枚举同 uid 进程并清理，详见 `src/sandbox/darwin-process-containment.ts` 与 `native/process-containment-helper.c`。
-- **artifacts 目录**：每个 service 独占的宿主目录，存放 canary、临时 HOME、TMPDIR 与日志，路径为 `<数据库所在目录>/services/<serviceId>/`。
+- **artifacts 目录【本次新增】**：每个 service 独占的宿主目录，存放 canary、临时 HOME、TMPDIR 与日志，路径为 `<数据库所在目录>/services/<serviceId>/`。
 
 ## 当前实现
 
@@ -41,7 +41,7 @@
 
 ### 端到端最小示例
 
-agent 在 `workspace_sandbox` 会话中启动 Vite。工具输入：
+agent 在 `workspace_sandbox` 会话中启动 Vite。调用新增工具 service, 工具输入：
 
 ```json
 { "action": "start", "name": "web", "command": "npm run dev", "cwd": "web" }
@@ -124,6 +124,8 @@ flowchart TD
 - **谁清理**：正常停止由 manager 发 SIGTERM → 等待 → SIGKILL 进程组 → helper `cleanup` 按指纹兜底 → 捕获最终日志尾部 → 删除 artifacts 目录；server 崩溃留下的孤儿进程在下次启动时由恢复流程按同一指纹机制清理。
 
 ### 状态机
+
+一条 service（持久进程记录）的生命周期状态机 ，即`persistent_services` 表`status` 列的取值和转移规则
 
 | 状态 | 含义 | pid 列 | ended_at |
 | --- | --- | --- | --- |
