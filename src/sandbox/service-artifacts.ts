@@ -115,13 +115,24 @@ export class ServiceArtifacts {
 }
 
 /**
- * 解码尾部字节：起点落在 UTF-8 中间字节时向后跳到下一个完整字符边界，避免
- * 解码出替换字符使返回字节数超过上限。
+ * 解码尾部字节：起点落在 UTF-8 中间字节时向后跳到下一个完整字符边界；末尾的
+ * 残缺 UTF-8 序列（例如 10 MiB 写入上限切断了多字节字符）丢弃，避免解码出
+ * 替换字符使返回字节数超过上限。
  */
 function decodeUtf8Tail(buffer: Buffer): string {
   let start = 0;
   while (start < buffer.byteLength && (buffer[start]! & 0xc0) === 0x80) {
     start += 1;
   }
-  return buffer.subarray(start).toString("utf8");
+  let end = buffer.byteLength;
+  const decoder = new TextDecoder("utf-8", { fatal: true });
+  while (end > start) {
+    try {
+      return decoder.decode(buffer.subarray(start, end));
+    } catch {
+      // 末尾是残缺字符（或含非法字节），向前裁掉一个字节后重试。
+      end -= 1;
+    }
+  }
+  return "";
 }

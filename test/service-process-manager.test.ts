@@ -482,3 +482,15 @@ test("service artifacts stops writing past the log limit and sets truncated", as
   const tail = await artifacts.readTail(1024);
   assert.equal(Buffer.byteLength(tail, "utf8"), 1024);
 });
+
+test("service artifacts drops a truncated trailing UTF-8 character from the tail", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "agent-service-artifacts-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const artifacts = await ServiceArtifacts.create(directory);
+  // '中' 的完整 UTF-8 是 E4 B8 AD，末尾再写一个被切断的 '出'（E4 B8）。
+  artifacts.append(Buffer.from([0xe4, 0xb8, 0xad, 0xe4, 0xb8]));
+
+  const tail = await artifacts.readTail(8);
+  assert.ok(Buffer.byteLength(tail, "utf8") <= 8);
+  assert.equal(tail, "中");
+});
