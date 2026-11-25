@@ -422,14 +422,6 @@ export class ServiceProcessManager {
     }
   }
 
-  async #waitForLiveRow(live: LiveService): Promise<void> {
-    // spawn 与 insert 之间进程可能已退出：此时 exit 监听先落库会因行不存在而
-    // 静默丢失终态。这里轮询等 insert 完成，再继续状态推进。
-    while (this.#store.read(live.id) === undefined) {
-      await delay(1);
-    }
-  }
-
   #watchExit(live: LiveService): Promise<void> {
     let resolveHandled: () => void = () => {};
     live.exitHandled = new Promise<void>((resolve) => {
@@ -448,9 +440,6 @@ export class ServiceProcessManager {
   }
 
   async #onExit(live: LiveService, outcome: ServiceExit): Promise<void> {
-    // exit 事件不保证按 spawn 顺序到达，也不保证 start 已经 insert 完。等待行
-    // 出现后再落终态；live 状态下清 pid 的 UPDATE 才是真正的状态推进。
-    await this.#waitForLiveRow(live);
     const now = this.#isoNow();
     const finalLogTail = await live.artifacts.captureFinalTail(
       SERVICE_FINAL_LOG_TAIL_BYTES,
