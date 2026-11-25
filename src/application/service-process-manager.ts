@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { rm } from "node:fs/promises";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
@@ -535,7 +536,6 @@ export class ServiceProcessManager {
   }
 
   async #removeArtifactsDir(artifactsDir: string): Promise<void> {
-    const { rm } = await import("node:fs/promises");
     await rm(artifactsDir, { recursive: true, force: true });
   }
 

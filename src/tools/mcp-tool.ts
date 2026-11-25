@@ -15,7 +15,7 @@ import type {
 } from "../protocol.js";
 import type { WorkspaceMcpDiagnostic } from "../infrastructure/workspace-mcp-config.js";
 import type { McpToolSource } from "../mcp/server-pool.js";
-import { defineTool, ToolExecutionError, type Tool } from "../tools.js";
+import { defineTool, toJsonValue, ToolExecutionError, type Tool } from "../tools.js";
 
 const TOOL_NAME_PATTERN = /[^A-Za-z0-9_-]/g;
 
@@ -272,27 +272,4 @@ function textSummary(content: readonly McpContentBlock[]): string {
     .join("\n")
     .trim();
   return text === "" ? "MCP tool returned an error." : text;
-}
-
-function toJsonValue(value: unknown): JsonValue {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean"
-  ) {
-    return value;
-  }
-  if (typeof value === "number") {
-    return Number.isFinite(value) ? value : String(value);
-  }
-  if (Array.isArray(value)) return value.map(toJsonValue);
-  if (typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value as Record<string, unknown>).map(([k, v]) => [
-        k,
-        toJsonValue(v),
-      ]),
-    );
-  }
-  return String(value);
 }

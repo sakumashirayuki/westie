@@ -4,14 +4,10 @@ import { isAbsolute, relative, resolve, sep } from "node:path";
 import { z } from "zod";
 
 import type { ExecutionMode } from "../domain/conversation.js";
-import type {
-  ServiceLogs,
-  ServiceProcessManager,
-  ServiceSnapshot,
-  ServiceSummary,
-} from "../application/service-process-manager.js";
+import type { ServiceProcessManager } from "../application/service-process-manager.js";
 import {
   defineTool,
+  toJsonValue,
   ToolExecutionError,
   type Tool,
 } from "../tools.js";
@@ -97,36 +93,33 @@ export function createServiceTool(
         case "list":
           return {
             action: "list",
-            services: manager.list(workspaceRoot).map(toJsonObject),
+            services: manager.list(workspaceRoot).map(toJsonValue),
           };
         case "status":
           return {
             action: "status",
-            service: toJsonObject(
-              withError(
+            service: toJsonValue(
+              await withServiceNotFoundError(
                 () => manager.status(data.id, workspaceRoot),
-                "SERVICE_NOT_FOUND",
               ),
             ),
           };
         case "logs":
-          return toJsonObject(
-            await withErrorAsync(
+          return toJsonValue(
+            await withServiceNotFoundError(
               () => manager.logs(
                 data.id,
                 workspaceRoot,
                 data.tailBytes ?? DEFAULT_TAIL_BYTES,
               ),
-              "SERVICE_NOT_FOUND",
             ),
           );
         case "stop":
           return {
             action: "stop",
-            service: toJsonObject(
-              await withErrorAsync(
+            service: toJsonValue(
+              await withServiceNotFoundError(
                 () => manager.stop(data.id, workspaceRoot, data.force ?? false),
-                "SERVICE_NOT_FOUND",
               ),
             ),
           };
@@ -154,7 +147,7 @@ async function startService(
       createdByConversationId: context?.conversationId ?? null,
       createdByToolCallId: context?.toolCallId ?? null,
     });
-    return { action: "start", service: toJsonObject(service) };
+    return { action: "start", service: toJsonValue(service) };
   } catch (error) {
     throw serviceStartError(error);
   }
@@ -206,26 +199,17 @@ function serviceStartError(error: unknown): never {
   );
 }
 
-function withError<T>(operation: () => T, code: "SERVICE_NOT_FOUND"): T {
-  try {
-    return operation();
-  } catch (error) {
-    if (error instanceof Error && error.message === code) {
-      throw new ToolExecutionError(code, "Service not found in this workspace.");
-    }
-    throw error;
-  }
-}
-
-async function withErrorAsync<T>(
+async function withServiceNotFoundError<T>(
   operation: () => T | Promise<T>,
-  code: "SERVICE_NOT_FOUND",
 ): Promise<T> {
   try {
     return await operation();
   } catch (error) {
-    if (error instanceof Error && error.message === code) {
-      throw new ToolExecutionError(code, "Service not found in this workspace.");
+    if (error instanceof Error && error.message === "SERVICE_NOT_FOUND") {
+      throw new ToolExecutionError(
+        "SERVICE_NOT_FOUND",
+        "Service not found in this workspace.",
+      );
     }
     throw error;
   }
@@ -259,30 +243,4 @@ function summarizeServiceInput(input: ServiceToolInput): JsonValue {
         ...(input.force === undefined ? {} : { force: input.force }),
       };
   }
-}
-
-function toJsonValue(value: unknown): JsonValue {
-  if (
-    value === null ||
-    typeof value === "string" ||
-    typeof value === "boolean" ||
-    typeof value === "number"
-  ) {
-    return typeof value === "number" && !Number.isFinite(value)
-      ? String(value)
-      : (value as JsonValue);
-  }
-  if (Array.isArray(value)) return value.map(toJsonValue);
-  if (typeof value === "object") {
-    return Object.fromEntries(
-      Object.entries(value).map(([key, child]) => [key, toJsonValue(child)]),
-    );
-  }
-  return String(value);
-}
-
-function toJsonObject(
-  value: ServiceSnapshot | ServiceSummary | ServiceLogs,
-): JsonValue {
-  return toJsonValue(value) as { [key: string]: JsonValue };
 }

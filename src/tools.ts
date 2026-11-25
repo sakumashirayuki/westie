@@ -201,7 +201,7 @@ export class ToolRegistry {
   }
 }
 
-function toJsonValue(value: unknown): JsonValue {
+export function toJsonValue(value: unknown): JsonValue {
   if (
     value === null ||
     typeof value === "string" ||
