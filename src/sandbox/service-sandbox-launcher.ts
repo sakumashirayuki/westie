@@ -123,10 +123,6 @@ export class MacOsServiceSandboxLauncher implements ServiceLauncher {
     child.stdout?.on("data", command.onStdout);
     child.stderr?.on("data", command.onStderr);
     child.once("error", () => {});
-    child.stdout?.resume();
-    child.stderr?.resume();
-    child.stdout?.resume();
-    child.stderr?.resume();
 
     if (child.pid === undefined) {
       throw new Error("SERVICE_START_FAILED");
