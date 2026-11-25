@@ -4,6 +4,7 @@ import {
   type SandboxRunnerFactory,
 } from "./runtime.js";
 import { createAgentServer } from "./server.js";
+import { initializeServiceProcessManager } from "./service-process-bootstrap.js";
 import {
   isLoopbackBindHost,
   loadAgentServerConfig,
@@ -22,13 +23,8 @@ import {
   initializeSqliteSchema,
   openSqliteDatabase,
   SQLiteConversationStore,
-  SQLitePersistentServiceStore,
 } from "./infrastructure/sqlite/index.js";
-import {
-  ServiceProcessManager,
-} from "./application/service-process-manager.js";
-import { MacOsServiceSandboxLauncher } from "./sandbox/service-sandbox-launcher.js";
-import { dirname } from "node:path";
+import type { ServiceProcessManager } from "./application/service-process-manager.js";
 import {
   MacOsHostDirectoryPicker,
   MacOsHostFilePicker,
@@ -115,35 +111,11 @@ export async function startAgentServer(
       }));
     }
 
-    // 持久进程：launcher 在 macOS 上预检 sandbox-exec 与 helper，失败时 fail
-    // closed，不注册 service 工具。恢复在 listen 之前执行，杀掉上次崩溃留下的
-    // 孤儿进程并把历史 live 行置为 interrupted。
-    let serviceLauncher: ServiceLauncher | undefined;
-    try {
-      serviceLauncher = options.serviceLauncher ??
-        await MacOsServiceSandboxLauncher.create(dirname(config.databasePath));
-      const serviceStore = new SQLitePersistentServiceStore(database);
-      serviceProcessManager = new ServiceProcessManager({
-        store: serviceStore,
-        launcher: serviceLauncher,
-        artifactsRoot: `${dirname(config.databasePath)}/services`,
-      });
-      const interruptedServices =
-        await serviceProcessManager.reconcileInterrupted();
-      if (interruptedServices > 0) {
-        console.warn(JSON.stringify({
-          event: "service_recovery",
-          reason: "PROCESS_RESTARTED",
-          services: interruptedServices,
-        }));
-      }
-    } catch (error) {
-      console.warn(JSON.stringify({
-        event: "service_sandbox_unavailable",
-        message: error instanceof Error ? error.message : String(error),
-      }));
-      serviceProcessManager = undefined;
-    }
+    serviceProcessManager = await initializeServiceProcessManager(
+      database,
+      config.databasePath,
+      options.serviceLauncher,
+    );
 
     const workspaceGrantStore = new InMemoryWorkspaceGrantStore();
     const toolGrantStore = new InMemoryToolGrantStore();
