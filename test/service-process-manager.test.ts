@@ -411,6 +411,21 @@ test("terminal log tail truncates on UTF-8 character boundaries", async (t) => {
   });
 });
 
+test("live log tail truncates on UTF-8 character boundaries", async (t) => {
+  await withManager(t, async ({ manager, launcher }) => {
+    const workspace = await mkdtemp(join(tmpdir(), "agent-service-ws-"));
+    t.after(() => rm(workspace, { recursive: true, force: true }));
+    const started = await manager.start(startCommand(workspace));
+    const process = launcher.processes.get(started.pid!)!;
+    process.stdout(Buffer.from("中文日志输出\n"));
+
+    const logs = await manager.logs(started.id, workspace, 4);
+    assert.equal(logs.status, "running");
+    assert.ok(Buffer.byteLength(logs.tail, "utf8") <= 4);
+    assert.equal(logs.tail, "出\n");
+  });
+});
+
 test("natural exit after start becomes exited with the real exit code", async (t) => {
   await withManager(t, async ({ manager, launcher }) => {
     const workspace = await mkdtemp(join(tmpdir(), "agent-service-ws-"));

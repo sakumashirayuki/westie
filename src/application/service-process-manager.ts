@@ -494,13 +494,22 @@ export class ServiceProcessManager {
     if (!force) {
       try {
         await this.#launcher.terminate(row.pid, "SIGTERM");
-        const exited = await Promise.race([
-          live.exit.then(() => true),
-          delay(this.#stopGracePeriodMs).then(() => false),
-        ]);
-        if (exited) {
-          await this.#waitForExitHandled(live);
-          return;
+        let graceTimer: NodeJS.Timeout | undefined;
+        const grace = new Promise<boolean>((resolve) => {
+          graceTimer = setTimeout(() => resolve(false), this.#stopGracePeriodMs);
+        });
+        try {
+          const exited = await Promise.race([
+            live.exit.then(() => true),
+            grace,
+          ]);
+          if (exited) {
+            await this.#waitForExitHandled(live);
+            return;
+          }
+        } finally {
+          // 退出事件先到时取消宽限定时器，避免已停止的服务仍拖住事件循环。
+          if (graceTimer !== undefined) clearTimeout(graceTimer);
         }
       } catch {
         // SIGTERM 失败时继续走强杀路径。

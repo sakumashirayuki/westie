@@ -87,7 +87,7 @@ export class ServiceArtifacts {
       const start = size - length;
       const buffer = Buffer.alloc(length);
       await handle.read(buffer, 0, length, start);
-      return buffer.toString("utf8");
+      return decodeUtf8Tail(buffer);
     } finally {
       await handle.close();
     }
@@ -112,4 +112,16 @@ export class ServiceArtifacts {
     }
     await rm(this.layout.root, { recursive: true, force: true });
   }
+}
+
+/**
+ * 解码尾部字节：起点落在 UTF-8 中间字节时向后跳到下一个完整字符边界，避免
+ * 解码出替换字符使返回字节数超过上限。
+ */
+function decodeUtf8Tail(buffer: Buffer): string {
+  let start = 0;
+  while (start < buffer.byteLength && (buffer[start]! & 0xc0) === 0x80) {
+    start += 1;
+  }
+  return buffer.subarray(start).toString("utf8");
 }
