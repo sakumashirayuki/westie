@@ -87,7 +87,7 @@ export class ServiceArtifacts {
       const start = size - length;
       const buffer = Buffer.alloc(length);
       await handle.read(buffer, 0, length, start);
-      return decodeUtf8Tail(buffer);
+      return decodeUtf8Tail(buffer, maxBytes);
     } finally {
       await handle.close();
     }
@@ -115,24 +115,45 @@ export class ServiceArtifacts {
 }
 
 /**
- * 解码尾部字节：起点落在 UTF-8 中间字节时向后跳到下一个完整字符边界；末尾的
- * 残缺 UTF-8 序列（例如 10 MiB 写入上限切断了多字节字符）丢弃，避免解码出
- * 替换字符使返回字节数超过上限。
+ * 解码尾部字节：丢弃切片开头和末尾的残缺 UTF-8 序列，局部的非法字节替换为
+ * U+FFFD（不丢弃其后的有效日志），再把结果裁剪到 maxBytes 字节以内。
  */
-function decodeUtf8Tail(buffer: Buffer): string {
+function decodeUtf8Tail(buffer: Buffer, maxBytes: number): string {
   let start = 0;
   while (start < buffer.byteLength && (buffer[start]! & 0xc0) === 0x80) {
     start += 1;
   }
   let end = buffer.byteLength;
-  const decoder = new TextDecoder("utf-8", { fatal: true });
-  while (end > start) {
-    try {
-      return decoder.decode(buffer.subarray(start, end));
-    } catch {
-      // 末尾是残缺字符（或含非法字节），向前裁掉一个字节后重试。
-      end -= 1;
-    }
+  const trailingIncomplete = trailingIncompleteBytes(buffer, end);
+  if (trailingIncomplete > 0) end -= trailingIncomplete;
+  const decoded = buffer.subarray(start, end).toString("utf8");
+  return tailOfUtf8(decoded, maxBytes);
+}
+
+/** 返回末尾残缺 UTF-8 序列占用的字节数；完整或只有非法单字节时返回 0。 */
+function trailingIncompleteBytes(buffer: Buffer, end: number): number {
+  if (end <= 0) return 0;
+  const last = buffer[end - 1]!;
+  if ((last & 0x80) === 0) return 0;
+  let lead = end - 1;
+  while (lead >= 0 && (buffer[lead]! & 0xc0) === 0x80) lead -= 1;
+  if (lead < 0) return end;
+  const byte = buffer[lead]!;
+  let needed = 0;
+  if ((byte & 0xe0) === 0xc0) needed = 1;
+  else if ((byte & 0xf0) === 0xe0) needed = 2;
+  else if ((byte & 0xf8) === 0xf0) needed = 3;
+  else return 0;
+  return end - 1 - lead < needed ? end - lead : 0;
+}
+
+/** 按字节预算从末尾裁剪字符串，且不切断完整字符。 */
+function tailOfUtf8(value: string, maxBytes: number): string {
+  const buffer = Buffer.from(value, "utf8");
+  if (buffer.byteLength <= maxBytes) return value;
+  let start = buffer.byteLength - maxBytes;
+  while (start < buffer.byteLength && (buffer[start]! & 0xc0) === 0x80) {
+    start += 1;
   }
-  return "";
+  return buffer.subarray(start).toString("utf8");
 }

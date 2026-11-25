@@ -494,3 +494,14 @@ test("service artifacts drops a truncated trailing UTF-8 character from the tail
   assert.ok(Buffer.byteLength(tail, "utf8") <= 8);
   assert.equal(tail, "中");
 });
+
+test("service artifacts keeps valid log text after a lone invalid UTF-8 byte", async (t) => {
+  const directory = await mkdtemp(join(tmpdir(), "agent-service-artifacts-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const artifacts = await ServiceArtifacts.create(directory);
+  // 非法字节 0xff 之后的 '中'（E4 B8 AD）必须保留。
+  artifacts.append(Buffer.from([0xff, 0xe4, 0xb8, 0xad]));
+
+  const tail = await artifacts.readTail(1024);
+  assert.equal(tail, "\ufffd中");
+});
