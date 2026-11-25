@@ -111,6 +111,9 @@ export type ToolErrorCode =
   | "MCP_SERVER_UNAVAILABLE"
   | "MCP_TOOL_ERROR"
   | "STOP_HOOK_OUTPUT_INVALID"
+  | "SERVICE_NOT_FOUND"
+  | "SERVICE_LIMIT_REACHED"
+  | "SERVICE_START_FAILED"
   | "TOOL_INTERRUPTED";
 
 export class ProtocolError extends Error {

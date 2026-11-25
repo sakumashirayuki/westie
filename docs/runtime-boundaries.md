@@ -45,6 +45,7 @@
 - 用户级 stdio Server 的 `cwd` 相对 `~` 解析并必须留在主目录内（`resolveUserMcpCwd`）；workspace 级 stdio Server 的 `cwd` 相对 workspace 并必须留在其内（`resolveMcpCwd`）。两个边界根不能混用：用户级配置不属于任何 workspace。
 - MCP 设置面板（Web）通过 `GET/PUT /v1/agent/mcp-config` 与 `POST /v1/agent/mcp-config:probe` 管理用户级文件。读写与测试连接都要求受信任的宿主动作 Origin；写回额外要求服务绑定 loopback，因为 stdio Server 在宿主机直起、可执行命令。写回用临时文件 + rename 原子替换，写前拒绝符号链接，写后读回一次做校验闭环。面板只改用户级文件，workspace 级文件不走面板。
 - `bash` 由 `MacOsSeatbeltSandboxRunner` 启动。文件读取采用显式系统/工具链/workspace allowlist，写入只允许 workspace 与命令级临时 HOME，网络默认不可达；workspace 外符号链接仍受目标路径策略限制。
+- `service` 由 `ServiceProcessManager` + `MacOsServiceSandboxLauncher` 启动，生命周期绑定工作区而不是单次工具调用：`start` 落一条 `persistent_services` 记录并 spawn 新进程组，1.5 秒宽限窗口内存活则置 `running`；进程自然退出置 `exited`，`stop` 走 SIGTERM → 5 秒宽限 → SIGKILL 进程组 + helper 指纹清理 → `stopped`，服务关停序列预算 10 秒。service profile 在 workspace profile 基础上追加 `(allow network*)`（可绑定与出站），文件读写 allowlist、敏感路径拒绝、canary 规则与环境白名单不变；不经过 helper `exec`，因此不设 RLIMIT_CPU/RLIMIT_FSIZE，也不跑资源监督器。每工作区 live service 上限 16，日志单文件 10 MiB、logs 尾部默认 8 KiB/上限 32 KiB，终态尾部 4 KiB。service 不接收 Run 的 AbortSignal，Run 取消不会终止它；状态变化不产生 SSE 事件，只通过工具结果进入 transcript。
 - Full Access 仍经 permissive Seatbelt profile 标记进程，但不限制宿主文件和网络；profile 只保护进程指纹，供资源统计和逃逸后代清理使用。Full Access 使用真实 HOME、临时 TMPDIR 和相同环境白名单。
 - Bash 子进程只接收 `HOME`、`TMPDIR`、`PATH`、`SHELL`、locale、`TERM` 和沙箱标识，不继承 Provider API Key。临时 HOME 会在命令结束后删除，因此真实 `~/.gitconfig`、语言版本管理器配置和用户缓存默认不可见。
 - Stop Hook 的检查脚本与 `bash` 走同一个 `SandboxRunner`：复用当前执行模式的 Seatbelt 策略、资源配额、环境白名单、取消与进程树清理，只在 `SandboxCommand` 上多一个一次性写入 stdin 的字段。`workspace_sandbox` 下 `stop_hook` 规则为 `confirm`，`deriveGrantOptions` 返回空数组，因此交互层拒绝任何会话级授权请求，一次批准只覆盖这一次检查；`full_access` 由策略链首位直接放行。检查通过内部工具执行，不进入模型可见工具列表，也不产生 assistant tool-call 消息。脚本的 stdin、stdout 与 stderr 受 8 MiB 输入、48 KiB 输出上限约束，超限按 `STOP_HOOK_FAILED` 失败；脚本内再启动 Seatbelt 仍会遇到嵌套沙箱限制，Harness 不因此改变权限边界。
@@ -52,6 +53,7 @@
 - 每个 Bash Run 会创建一对位于沙箱可写范围外的真实 canary，只把其中一个精确路径加入本次 Seatbelt profile。宿主原生 helper 通过 `sandbox_check + libproc` 找出同时满足“处于沙箱、允许 canary A、拒绝 canary B”的进程并循环清理；并发 Run 的指纹互不相同。查询失败、终止失败或清理不收敛会返回 `PROCESS_CONTAINMENT_FAILED`。
 - 这套识别依赖 macOS SPI，解决的是当前 Seatbelt MVP 中已发现的脱组和 daemonize 逃逸，不宣称与 cgroup、Endpoint Security 或 VM 等价。恶意进程若主动改变自身可查询的 Seatbelt 指纹，纯用户态 helper 仍缺少公开、零竞态的内核级收容保证；需要强对抗保证时应升级为 Endpoint Security 系统扩展或 VM 后端。
 - 当前服务的 Conversation 数据持久化到本地 SQLite；Tool 确认和单文件读取授权仍只在内存中，不跨进程恢复。SSE 断开会取消 Run 并清理 pending Interaction；CORS 不是认证机制。
+- `service` 的元数据持久化到 `persistent_services`（`user_version = 7`），artifacts 目录 `<数据库所在目录>/services/<serviceId>/` 存放 canary、临时 HOME/TMPDIR 与 `service.log`。server 崩溃留下的孤儿进程在下次启动时由 `reconcileInterrupted()` 按 canary 指纹清理并把历史 live 行置 `interrupted`，不自动重启。
 - Full Access 创建与每次运行都要求服务绑定 loopback，并拒绝非 loopback 浏览器 Origin；无 Origin 的本机进程仍可调用，因此这不是本机进程间认证。
 - WorkspaceRuntime 缓存当前随进程存活且没有容量淘汰；可信本机 MVP 可接受，长期运行并频繁打开大量不同项目时需要增加 LRU 或显式关闭。
 

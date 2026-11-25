@@ -4,6 +4,7 @@ import {
   type SandboxRunnerFactory,
 } from "./runtime.js";
 import { createAgentServer } from "./server.js";
+import { initializeServiceProcessManager } from "./service-process-bootstrap.js";
 import {
   isLoopbackBindHost,
   loadAgentServerConfig,
@@ -23,6 +24,7 @@ import {
   openSqliteDatabase,
   SQLiteConversationStore,
 } from "./infrastructure/sqlite/index.js";
+import type { ServiceProcessManager } from "./application/service-process-manager.js";
 import {
   MacOsHostDirectoryPicker,
   MacOsHostFilePicker,
@@ -53,6 +55,7 @@ import {
   createDefaultToolPermissionPolicy,
   JsonLineToolAuditSink,
 } from "./tool-permissions.js";
+import type { ServiceLauncher } from "./sandbox/service-sandbox-launcher.js";
 
 export interface StartAgentServerOptions {
   /** 建会话时的目录来源；缺省弹 macOS 原生选择器。 */
@@ -65,6 +68,8 @@ export interface StartAgentServerOptions {
   readonly gitExecutable?: string;
   /** Westie 管理的 worktree 根目录；缺省 `~/.westie/worktrees`。 */
   readonly worktreeRoot?: string;
+  /** 持久进程的沙箱 launcher；缺省 macOS Seatbelt，测试可替换。 */
+  readonly serviceLauncher?: ServiceLauncher;
 }
 
 /** 已启动的服务句柄：宿主据此加载页面并在退出时等待业务清理。 */
@@ -83,6 +88,8 @@ export async function startAgentServer(
   const conversationStore = new SQLiteConversationStore(database);
   // 飞书桥在 try 内装配，catch 中需要拿到它做关停，声明提到外层。
   let larkBridge: LarkBridge | undefined;
+  // 持久进程管理器在 catch 关停分支同样需要访问，声明提到 try 外层。
+  let serviceProcessManager: ServiceProcessManager | undefined;
 
   try {
     initializeSqliteSchema(database);
@@ -104,6 +111,12 @@ export async function startAgentServer(
       }));
     }
 
+    serviceProcessManager = await initializeServiceProcessManager(
+      database,
+      config.databasePath,
+      options.serviceLauncher,
+    );
+
     const workspaceGrantStore = new InMemoryWorkspaceGrantStore();
     const toolGrantStore = new InMemoryToolGrantStore();
     const steeringQueue = new RunSteeringQueue();
@@ -118,6 +131,9 @@ export async function startAgentServer(
             ...(options.sandboxRunnerFactory === undefined
               ? {}
               : { sandboxRunnerFactory: options.sandboxRunnerFactory }),
+            ...(serviceProcessManager === undefined
+              ? {}
+              : { serviceProcessManager }),
           },
         ),
     );
@@ -285,9 +301,13 @@ export async function startAgentServer(
         await stopped;
       } finally {
         try {
-          conversationStore.close();
+          await serviceProcessManager?.shutdown();
         } finally {
-          await mcpServerPool.close();
+          try {
+            conversationStore.close();
+          } finally {
+            await mcpServerPool.close();
+          }
         }
       }
     };
@@ -313,6 +333,7 @@ export async function startAgentServer(
         }));
       });
     }
+    await serviceProcessManager?.shutdown().catch(() => {});
     conversationStore.close();
     throw error;
   }

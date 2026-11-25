@@ -225,7 +225,7 @@ export class DarwinProcessContainment implements ProcessContainment {
   }
 }
 
-function createCanary(canaryPath: string): void {
+export function createCanary(canaryPath: string): void {
   const descriptor = openSync(
     canaryPath,
     constants.O_CREAT | constants.O_EXCL | constants.O_RDONLY,
@@ -234,7 +234,18 @@ function createCanary(canaryPath: string): void {
   closeSync(descriptor);
 }
 
-function runContainmentHelper(
+/** 在目录里创建一对 canary，返回其绝对路径。目录必须已存在。 */
+export function createCanaryPair(
+  canaryDirectory: string,
+): { readonly allowedCanaryPath: string; readonly deniedCanaryPath: string } {
+  const allowedCanaryPath = path.join(canaryDirectory, "allowed.canary");
+  const deniedCanaryPath = path.join(canaryDirectory, "denied.canary");
+  createCanary(allowedCanaryPath);
+  createCanary(deniedCanaryPath);
+  return { allowedCanaryPath, deniedCanaryPath };
+}
+
+export function runContainmentHelper(
   allowedCanaryPath: string,
   deniedCanaryPath: string,
 ): Promise<void> {
