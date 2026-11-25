@@ -393,6 +393,24 @@ test("terminal logs keep the truncation flag and honor tailBytes", async (t) => 
   });
 });
 
+test("terminal log tail truncates on UTF-8 character boundaries", async (t) => {
+  await withManager(t, async ({ manager, launcher }) => {
+    const workspace = await mkdtemp(join(tmpdir(), "agent-service-ws-"));
+    t.after(() => rm(workspace, { recursive: true, force: true }));
+    const started = await manager.start(startCommand(workspace));
+    const process = launcher.processes.get(started.pid!)!;
+    // 每个中文字符 3 字节：5 个字符 + 换行 = 16 字节。
+    process.stdout(Buffer.from("中文日志输出\n"));
+    process.resolveExit({ exitCode: 0, exitSignal: null });
+    await delay(20);
+
+    const terminal = await manager.logs(started.id, workspace, 4);
+    assert.equal(terminal.status, "exited");
+    assert.ok(Buffer.byteLength(terminal.tail, "utf8") <= 4);
+    assert.equal(terminal.tail, "出\n");
+  });
+});
+
 test("natural exit after start becomes exited with the real exit code", async (t) => {
   await withManager(t, async ({ manager, launcher }) => {
     const workspace = await mkdtemp(join(tmpdir(), "agent-service-ws-"));

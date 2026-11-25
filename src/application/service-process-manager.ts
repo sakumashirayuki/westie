@@ -225,6 +225,8 @@ export class ServiceProcessManager {
       await artifacts.remove().catch(() => {});
       throw error;
     }
+    // 行落库后 live 名额由 countLive 计入，释放启动预留，避免宽限期内重复计数。
+    this.#starting.delete(id);
 
     const live: LiveService = {
       id,
@@ -367,20 +369,29 @@ export class ServiceProcessManager {
     if (this.#shutdownStarted) return;
     this.#shutdownStarted = true;
     const liveEntries = [...this.#live.values()];
-    await Promise.race([
-      Promise.all(
-        liveEntries.map(async (live) => {
-          try {
-            this.#store.markStopping(live.id, this.#isoNow());
-            live.status = "stopping";
-            await this.#terminateLive(live, false);
-          } catch {
-            // 关停阶段每条 service 独立处理；残留由下面统一兜底。
-          }
-        }),
-      ),
-      delay(this.#shutdownBudgetMs).then(() => undefined),
-    ]);
+    // 空闲服务端直接返回：不创建预算定时器，避免无活进程时仍拖住事件循环。
+    if (liveEntries.length === 0) return;
+    const stopAll = Promise.all(
+      liveEntries.map(async (live) => {
+        try {
+          this.#store.markStopping(live.id, this.#isoNow());
+          live.status = "stopping";
+          await this.#terminateLive(live, false);
+        } catch {
+          // 关停阶段每条 service 独立处理；残留由下面统一兜底。
+        }
+      }),
+    );
+    let budgetTimer: NodeJS.Timeout | undefined;
+    const budget = new Promise<void>((resolve) => {
+      budgetTimer = setTimeout(resolve, this.#shutdownBudgetMs);
+    });
+    try {
+      await Promise.race([stopAll, budget]);
+    } finally {
+      // 关停工作完成后立即清掉预算定时器，避免空闲服务端也被拖住到预算耗尽。
+      if (budgetTimer !== undefined) clearTimeout(budgetTimer);
+    }
     // 预算耗尽后仍在活的进程统一 SIGKILL + 指纹清理并置 stopped。
     await Promise.all(
       [...this.#live.values()].map((live) => this.#forceStopLive(live)),
@@ -572,7 +583,13 @@ export class ServiceProcessManager {
 function tailOf(value: string, maxBytes: number): string {
   const buffer = Buffer.from(value, "utf8");
   if (buffer.byteLength <= maxBytes) return value;
-  return buffer.subarray(buffer.byteLength - maxBytes).toString("utf8");
+  let start = buffer.byteLength - maxBytes;
+  // 起点落在 UTF-8 中间字节时，向后跳到下一个完整字符边界，避免解码出替换
+  // 字符使返回字节数超过上限。
+  while (start < buffer.byteLength && (buffer[start]! & 0xc0) === 0x80) {
+    start += 1;
+  }
+  return buffer.subarray(start).toString("utf8");
 }
 
 function toServiceSummary(row: PersistentServiceRow): ServiceSummary {
