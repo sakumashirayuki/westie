@@ -259,7 +259,7 @@ export class MacOsSeatbeltSandboxRunner implements SandboxRunner {
   }
 }
 
-function createCommandEnvironment(
+export function createCommandEnvironment(
   accessMode: SeatbeltAccessMode,
   temporaryHome: string,
 ): NodeJS.ProcessEnv {
@@ -276,8 +276,11 @@ function createCommandEnvironment(
   };
 }
 
-function createFullAccessSeatbeltProfile(
-  containment: DarwinProcessContainment,
+export function createFullAccessSeatbeltProfile(
+  containment: Pick<
+    DarwinProcessContainment,
+    "deniedCanaryPath" | "canaryDirectory"
+  >,
 ): string {
   return [
     "(version 1)",
@@ -289,13 +292,14 @@ function createFullAccessSeatbeltProfile(
   ].join("\n");
 }
 
-function createSeatbeltProfile(
+export function createSeatbeltProfile(
   workspaceRoot: string,
   temporaryHome: string,
   toolchainReadRoots: readonly string[],
   developerReadRoots: readonly string[],
   userTemporaryRoot: string,
   allowedContainmentCanary: string | undefined,
+  networkAllowed = false,
 ): string {
   const readableRoots = [
     ...SYSTEM_READ_ROOTS,
@@ -337,6 +341,7 @@ function createSeatbeltProfile(
     "(allow system-socket",
     "  (require-all (socket-domain AF_SYSTEM) (socket-protocol 2)))",
     "(allow sysctl-read)",
+    ...(networkAllowed ? ["(allow network*)"] : []),
     '(allow file-ioctl (literal "/dev/null"))',
     '(allow file-ioctl (literal "/dev/zero"))',
     '(allow file-ioctl (literal "/dev/random"))',
@@ -404,8 +409,7 @@ function indicatesPossibleSandboxViolation(stderr: string): boolean {
   return /operation not permitted/i.test(stderr);
 }
 
-async function resolveToolchainReadRoots(): Promise<readonly string[]> {
-  const pathEntries = (process.env.PATH ?? DEFAULT_PATH)
+async function resolveToolchainReadRoots(): Promise<readonly string[]> {  const pathEntries = (process.env.PATH ?? DEFAULT_PATH)
     .split(path.delimiter)
     .filter((entry) => entry !== "");
   const roots = new Set<string>();

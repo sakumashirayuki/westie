@@ -8,7 +8,7 @@ import { immediateTransaction } from "./transaction.js";
  * 存量库从当前版本逐级升级到 `LATEST_SCHEMA_VERSION`。结构变更与版本号
  * 在同一事务中提交。
  */
-export const LATEST_SCHEMA_VERSION = 6;
+export const LATEST_SCHEMA_VERSION = 7;
 
 export class SchemaVersionError extends Error {
   constructor(message: string) {
@@ -185,6 +185,66 @@ const MIGRATIONS: readonly Migration[] = [
           chat_id TEXT NOT NULL,
           received_at TEXT NOT NULL
         ) STRICT;
+      `);
+    },
+  },
+  /**
+   * 6 → 7：新增持久进程（service）表。`persistent_services` 是全新表，没有存量
+   * 行；其余 11 张表的结构均不变。存量库只做纯新增 DDL，不回填、不转换数据。
+   *
+   * 建库脚本在 initializeSqliteSchema 中已用 IF NOT EXISTS 建过这张表（新库直接
+   * 是 v7），升级路径上也用 IF NOT EXISTS 保持幂等、避免与建库脚本冲突。
+   */
+  {
+    version: 7,
+    apply(database) {
+      database.exec(`
+        CREATE TABLE IF NOT EXISTS persistent_services (
+          id TEXT PRIMARY KEY,
+          workspace_root TEXT NOT NULL,
+          name TEXT NULL
+            CHECK (name IS NULL OR length(trim(name)) BETWEEN 1 AND 64),
+          command TEXT NOT NULL
+            CHECK (length(trim(command)) > 0 AND length(command) <= 4096),
+          cwd TEXT NOT NULL CHECK (length(cwd) BETWEEN 1 AND 4096),
+          execution_mode TEXT NOT NULL
+            CHECK (execution_mode IN ('workspace_sandbox', 'full_access')),
+          status TEXT NOT NULL
+            CHECK (status IN (
+              'starting', 'running', 'stopping',
+              'exited', 'stopped', 'failed', 'interrupted'
+            )),
+          pid INTEGER NULL CHECK (pid IS NULL OR pid > 0),
+          artifacts_dir TEXT NOT NULL,
+          exit_code INTEGER NULL
+            CHECK (exit_code IS NULL OR (exit_code >= 0 AND exit_code <= 255)),
+          exit_signal TEXT NULL
+            CHECK (exit_signal IS NULL OR length(exit_signal) BETWEEN 1 AND 32),
+          final_log_tail TEXT NULL
+            CHECK (final_log_tail IS NULL OR length(final_log_tail) <= 4096),
+          log_truncated INTEGER NOT NULL DEFAULT 0 CHECK (log_truncated IN (0, 1)),
+          created_by_conversation_id TEXT NULL
+            REFERENCES conversations(id) ON DELETE SET NULL,
+          created_by_tool_call_id TEXT NULL
+            CHECK (
+              created_by_tool_call_id IS NULL
+              OR length(created_by_tool_call_id) <= 128
+            ),
+          created_at TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          ended_at TEXT NULL,
+          CHECK ((status IN ('starting', 'running', 'stopping')) = (pid IS NOT NULL)),
+          CHECK (
+            (status IN ('starting', 'running', 'stopping')) = (ended_at IS NULL)
+          ),
+          CHECK (
+            (status IN ('exited', 'stopped'))
+            = (exit_code IS NOT NULL OR exit_signal IS NOT NULL)
+          )
+        ) STRICT;
+
+        CREATE INDEX IF NOT EXISTS persistent_services_workspace_status_idx
+          ON persistent_services(workspace_root, status, created_at DESC);
       `);
     },
   },

@@ -13,7 +13,7 @@ export interface Tool {
   readonly description: string;
   readonly impact: string;
   readonly maxOutputBytes?: number;
-  readonly inputSchema: z.ZodObject;
+  readonly inputSchema: z.ZodType;
   /**
    * 为 true 时 OpenAI provider 对该工具关掉 `strict` 模式（用裸 JSON Schema
    * 而非 strict schema）。外来 MCP 工具的 schema 常含可选字段 / anyOf，strict
@@ -56,7 +56,7 @@ export interface PreparedToolCall {
   execute(context?: ToolExecutionContext): Promise<ToolResult>;
 }
 
-export function defineTool<Schema extends z.ZodObject>(config: {
+export function defineTool<Schema extends z.ZodType>(config: {
   name: string;
   description: string;
   impact?: string;

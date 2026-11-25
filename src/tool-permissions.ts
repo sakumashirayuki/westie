@@ -549,6 +549,13 @@ export const defaultToolPermissionRules = {
   // 父任务本地的子任务控制工具（等待与停止），不执行外部动作。
   wait_agent: { effect: "allow", ruleId: "default:wait_agent:allow" },
   stop_agent: { effect: "allow", ruleId: "default:stop_agent:allow" },
+  // 持久进程工具：启动跨 Run 存活、可绑定网络端口的进程。
+  service: {
+    effect: "confirm",
+    ruleId: "default:service:confirm",
+    reason:
+      "The service tool starts a process that outlives the run and can bind network ports.",
+  },
   // 项目配置的完成检查脚本；只有单次批准，不能沿用会话授权。
   [STOP_HOOK_TOOL_NAME]: {
     effect: "confirm",

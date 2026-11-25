@@ -16,6 +16,7 @@
 - `memory`：读写当前项目的跨会话记忆文件（仓库外的 Markdown），只在父 Agent 注册；见 [项目记忆](./project-memory.md)
 - `bash`：在 macOS Seatbelt 沙箱中从 workspace 根目录执行 zsh 命令
 - `agent`：把一个自足的子任务交给子 Run。子 Run 用同一 Provider、同一套工具（不含 `agent`、`memory` 与项目记忆区块）和同一权限边界在全新 transcript 上运行，最多 128 步，只把最终回答作为工具结果放回父 transcript；同一批次里的多个 `agent` 调用并行执行。仅 Web 会话注册，CLI 不注册
+- `service`：启动并管理跨 Run、跨会话存活的工作区级持久进程（常驻 dev server 等），可绑定 loopback 端口；`list`/`status`/`logs` 查询状态与日志，`stop` 显式停止。仅 Web 会话注册（由常驻 server 装配），CLI 不注册
 
 CLI 以启动进程时的当前目录作为 workspace root；Web 运行台要求用户先通过 macOS 系统目录选择器打开项目，创建的 Conversation 在整个生命周期内固定绑定该 canonical workspace。
 

@@ -1,6 +1,7 @@
 import type { LlmProvider } from "./provider-protocol.js";
 import type { WorkspaceRuntime } from "./application/workspace-runtime.js";
 import type { WorkspaceGrantStore } from "./application/workspace-grant-store.js";
+import type { ServiceProcessManager } from "./application/service-process-manager.js";
 import type { ExecutionMode } from "./domain/conversation.js";
 import { DeepSeekProvider } from "./providers/deepseek.js";
 import { OpenAICompatibleProvider } from "./providers/openai-compatible.js";
@@ -19,6 +20,7 @@ import { todoTool } from "./tools/todo.js";
 import { createWebFetchTool } from "./tools/web-fetch.js";
 import { createWriteTool } from "./tools/write.js";
 import { createWebSearchTool } from "./tools/web-search.js";
+import { createServiceTool } from "./tools/service.js";
 
 export type SandboxRunnerFactory = (
   workspaceRoot: string,
@@ -29,6 +31,7 @@ export interface DefaultWorkspaceRuntimeOptions {
   readonly sandboxRunnerFactory?: SandboxRunnerFactory;
   readonly workspaceGrantStore?: WorkspaceGrantStore;
   readonly webSearchApiKey?: string;
+  readonly serviceProcessManager?: ServiceProcessManager;
 }
 
 export async function createDefaultWorkspaceRuntime(
@@ -70,6 +73,15 @@ export async function createDefaultWorkspaceRuntime(
       createWebFetchTool({ executionMode }),
       todoTool,
       createBashTool(workspaceRoot, sandboxRunner, executionMode),
+      ...(options.serviceProcessManager === undefined
+        ? []
+        : [
+            createServiceTool(
+              workspaceRoot,
+              executionMode,
+              options.serviceProcessManager,
+            ),
+          ]),
     ],
   };
 }
