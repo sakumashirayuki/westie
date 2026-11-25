@@ -99,6 +99,8 @@ export class ServiceProcessManager {
   readonly #stopGracePeriodMs: number;
   readonly #shutdownBudgetMs: number;
   readonly #live = new Map<string, LiveService>();
+  /** 正在启动（占用名额、尚未进入 live Map）的 service id → workspaceRoot。 */
+  readonly #starting = new Map<string, string>();
   #shutdownStarted = false;
 
   constructor(options: ServiceProcessManagerOptions) {
@@ -119,13 +121,26 @@ export class ServiceProcessManager {
       throw new Error("The service manager is shutting down.");
     }
     if (
-      this.#store.countLive(command.workspaceRoot) >=
+      this.#store.countLive(command.workspaceRoot) +
+        this.#startingCount(command.workspaceRoot) >=
         MAX_LIVE_SERVICES_PER_WORKSPACE
     ) {
       throw new Error("SERVICE_LIMIT_REACHED");
     }
 
     const id = randomUUID();
+    this.#starting.set(id, command.workspaceRoot);
+    try {
+      return await this.#startReserved(command, id);
+    } finally {
+      this.#starting.delete(id);
+    }
+  }
+
+  async #startReserved(
+    command: StartServiceCommand,
+    id: string,
+  ): Promise<ServiceSnapshot> {
     const startedAt = this.#isoNow();
     const artifactsDir = path.join(this.#artifactsRoot, id);
     let artifacts: ServiceArtifacts;
@@ -155,6 +170,7 @@ export class ServiceProcessManager {
       const spawned = await this.#launcher.spawn({
         command: command.command,
         cwd: command.cwd,
+        workspaceRoot: command.workspaceRoot,
         executionMode: command.executionMode,
         artifacts: {
           allowedCanaryPath: artifacts.layout.allowedCanaryPath,
@@ -317,6 +333,7 @@ export class ServiceProcessManager {
           exitCode: outcome?.exitCode ?? null,
           exitSignal: outcome?.exitSignal ?? null,
           finalLogTail,
+          logTruncated: live.artifacts.truncated,
         },
         this.#isoNow(),
       );
@@ -369,6 +386,14 @@ export class ServiceProcessManager {
       [...this.#live.values()].map((live) => this.#forceStopLive(live)),
     );
     this.#live.clear();
+  }
+
+  #startingCount(workspaceRoot: string): number {
+    let count = 0;
+    for (const root of this.#starting.values()) {
+      if (root === workspaceRoot) count += 1;
+    }
+    return count;
   }
 
   #waitOutcome(
@@ -437,13 +462,13 @@ export class ServiceProcessManager {
     if (live.status === "stopping") {
       this.#store.markStopped(
         live.id,
-        { ...stored, finalLogTail },
+        { ...stored, finalLogTail, logTruncated: live.artifacts.truncated },
         now,
       );
     } else {
       this.#store.markExited(
         live.id,
-        { ...stored, finalLogTail },
+        { ...stored, finalLogTail, logTruncated: live.artifacts.truncated },
         now,
       );
     }
@@ -498,6 +523,7 @@ export class ServiceProcessManager {
           exitCode: outcome?.exitCode ?? null,
           exitSignal: outcome?.exitSignal ?? null,
           finalLogTail,
+          logTruncated: live.artifacts.truncated,
         },
         now,
       );
@@ -527,7 +553,7 @@ export class ServiceProcessManager {
     tailBytes: number,
   ): Promise<ServiceLogs> {
     const tail = artifacts === undefined
-      ? row.finalLogTail ?? ""
+      ? tailOf(row.finalLogTail ?? "", tailBytes)
       : await artifacts.readTail(tailBytes);
     return {
       id: row.id,
@@ -541,6 +567,12 @@ export class ServiceProcessManager {
   #isoNow(): string {
     return new Date(this.#now()).toISOString();
   }
+}
+
+function tailOf(value: string, maxBytes: number): string {
+  const buffer = Buffer.from(value, "utf8");
+  if (buffer.byteLength <= maxBytes) return value;
+  return buffer.subarray(buffer.byteLength - maxBytes).toString("utf8");
 }
 
 function toServiceSummary(row: PersistentServiceRow): ServiceSummary {

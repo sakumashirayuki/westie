@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { Buffer } from "node:buffer";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { join } from "node:path";
@@ -40,15 +40,33 @@ interface FakeProcess {
   resolveExit: (outcome: ServiceExit) => void;
 }
 
+interface FakeSpawnCommand {
+  readonly command: string;
+  readonly cwd: string;
+  readonly workspaceRoot: string;
+  readonly executionMode: "workspace_sandbox" | "full_access";
+  readonly onStdout: (chunk: Buffer) => void;
+  readonly onStderr: (chunk: Buffer) => void;
+}
+
 class FakeLauncher implements ServiceLauncher {
   readonly processes = new Map<number, FakeProcess>();
   readonly cleanupCalls: string[][] = [];
   readonly terminateCalls: Array<{ pid: number; signal: NodeJS.Signals }> = [];
+  readonly spawnCommands: FakeSpawnCommand[] = [];
   nextPid = 1000;
   failSpawn = false;
 
   async spawn(command: SpawnServiceCommand): Promise<SpawnedServiceProcess> {
     if (this.failSpawn) throw new Error("spawn failed");
+    this.spawnCommands.push({
+      command: command.command,
+      cwd: command.cwd,
+      workspaceRoot: command.workspaceRoot,
+      executionMode: command.executionMode,
+      onStdout: command.onStdout,
+      onStderr: command.onStderr,
+    });
     const pid = this.nextPid++;
     const process: FakeProcess = {
       pid,
@@ -228,6 +246,7 @@ test("store lists live services and a bounded number of terminal rows", async (t
         exitCode: index,
         exitSignal: null,
         finalLogTail: null,
+        logTruncated: false,
       }, now(index));
     }
     const rows = store.listForWorkspace("/workspace", 10);
@@ -284,6 +303,45 @@ test("enforces the live service limit per workspace", async (t) => {
   });
 });
 
+test("concurrent starts cannot exceed the live service limit", async (t) => {
+  await withManager(t, async ({ manager, launcher }) => {
+    const workspace = await mkdtemp(join(tmpdir(), "agent-service-ws-"));
+    t.after(() => rm(workspace, { recursive: true, force: true }));
+    const commands = Array.from(
+      { length: MAX_LIVE_SERVICES_PER_WORKSPACE + 1 },
+      () => manager.start(startCommand(workspace)),
+    );
+    const results = await Promise.allSettled(commands);
+
+    assert.equal(
+      results.filter((result) => result.status === "fulfilled").length,
+      MAX_LIVE_SERVICES_PER_WORKSPACE,
+    );
+    assert.equal(
+      results.filter((result) => result.status === "rejected").length,
+      1,
+    );
+    assert.equal(launcher.processes.size, MAX_LIVE_SERVICES_PER_WORKSPACE);
+  });
+});
+
+test("service cwd restricts the process start directory but not the sandbox root", async (t) => {
+  await withManager(t, async ({ manager, launcher }) => {
+    const workspace = await mkdtemp(join(tmpdir(), "agent-service-ws-"));
+    t.after(() => rm(workspace, { recursive: true, force: true }));
+    await mkdir(join(workspace, "app"), { recursive: true });
+
+    await manager.start({
+      ...startCommand(workspace),
+      cwd: join(workspace, "app"),
+    });
+
+    const spawn = launcher.spawnCommands.at(-1)!;
+    assert.equal(spawn.cwd, join(workspace, "app"));
+    assert.equal(spawn.workspaceRoot, workspace);
+  });
+});
+
 test("stop is idempotent and stops a live service", async (t) => {
   await withManager(t, async ({ manager }) => {
     const workspace = await mkdtemp(join(tmpdir(), "agent-service-ws-"));
@@ -315,6 +373,23 @@ test("logs read the live file tail and the terminal final tail", async (t) => {
     const terminal = await manager.logs(started.id, workspace, 1024);
     assert.equal(terminal.status, "exited");
     assert.match(terminal.tail, /hello from service/);
+  });
+});
+
+test("terminal logs keep the truncation flag and honor tailBytes", async (t) => {
+  await withManager(t, async ({ manager, launcher }) => {
+    const workspace = await mkdtemp(join(tmpdir(), "agent-service-ws-"));
+    t.after(() => rm(workspace, { recursive: true, force: true }));
+    const started = await manager.start(startCommand(workspace));
+    const process = launcher.processes.get(started.pid!)!;
+    process.stdout(Buffer.from("hello from service\n"));
+    process.resolveExit({ exitCode: 0, exitSignal: null });
+    await delay(20);
+
+    const terminal = await manager.logs(started.id, workspace, 4);
+    assert.equal(terminal.status, "exited");
+    assert.equal(terminal.logTruncated, false);
+    assert.equal(Buffer.byteLength(terminal.tail, "utf8"), 4);
   });
 });
 

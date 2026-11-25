@@ -48,6 +48,8 @@ export interface ServiceLauncher {
 export interface SpawnServiceCommand {
   readonly command: string;
   readonly cwd: string;
+  /** 已验证的 canonical workspace 根，用于生成 Seatbelt 边界（cwd 只决定启动目录）。 */
+  readonly workspaceRoot: string;
   readonly executionMode: ServiceExecutionMode;
   readonly artifacts: {
     readonly allowedCanaryPath: string;
@@ -90,7 +92,7 @@ export class MacOsServiceSandboxLauncher implements ServiceLauncher {
           canaryDirectory: path.dirname(command.artifacts.allowedCanaryPath),
         })
       : createSeatbeltProfile(
-          command.cwd,
+          command.workspaceRoot,
           command.artifacts.homeDirectory,
           [],
           [],
@@ -161,7 +163,9 @@ export class MacOsServiceSandboxLauncher implements ServiceLauncher {
       path.join(tmpdir(), "my-agent-harness-service-preflight-"),
     );
     try {
-      const canaries = createCanaryPair(path.join(probeDirectory, "canary"));
+      const canaryDirectory = path.join(probeDirectory, "canary");
+      await mkdir(canaryDirectory, { recursive: true });
+      const canaries = createCanaryPair(canaryDirectory);
       const homeDirectory = path.join(probeDirectory, "home");
       const tmpDirectory = path.join(probeDirectory, "tmp");
       await mkdir(homeDirectory, { recursive: true });

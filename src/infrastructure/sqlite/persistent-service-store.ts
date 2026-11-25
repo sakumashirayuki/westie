@@ -268,6 +268,7 @@ export class SQLitePersistentServiceStore {
       readonly exitCode: number | null;
       readonly exitSignal: string | null;
       readonly finalLogTail: string | null;
+      readonly logTruncated: boolean;
     },
     now: string,
   ): boolean {
@@ -279,6 +280,7 @@ export class SQLitePersistentServiceStore {
         exit_code = $exitCode,
         exit_signal = $exitSignal,
         final_log_tail = $finalLogTail,
+        log_truncated = $logTruncated,
         updated_at = $now,
         ended_at = $now
       WHERE id = $id
@@ -288,6 +290,7 @@ export class SQLitePersistentServiceStore {
       "$exitCode": outcome.exitCode,
       "$exitSignal": outcome.exitSignal,
       "$finalLogTail": outcome.finalLogTail,
+      "$logTruncated": outcome.logTruncated ? 1 : 0,
       "$now": now,
     });
     return updated.changes === 1;
@@ -319,6 +322,7 @@ export class SQLitePersistentServiceStore {
       readonly exitCode: number | null;
       readonly exitSignal: string | null;
       readonly finalLogTail: string | null;
+      readonly logTruncated: boolean;
     },
     now: string,
   ): boolean {
@@ -330,6 +334,7 @@ export class SQLitePersistentServiceStore {
         exit_code = $exitCode,
         exit_signal = $exitSignal,
         final_log_tail = $finalLogTail,
+        log_truncated = $logTruncated,
         updated_at = $now,
         ended_at = $now
       WHERE id = $id
@@ -342,6 +347,7 @@ export class SQLitePersistentServiceStore {
           ? "SIGKILL"
           : outcome.exitSignal,
       "$finalLogTail": outcome.finalLogTail,
+      "$logTruncated": outcome.logTruncated ? 1 : 0,
       "$now": now,
     });
     return updated.changes === 1;
