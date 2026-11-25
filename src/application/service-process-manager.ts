@@ -407,17 +407,6 @@ export class ServiceProcessManager {
     return count;
   }
 
-  #waitOutcome(
-    live: LiveService,
-    exit: Promise<ServiceExit>,
-    timeoutMs: number,
-  ): Promise<void> {
-    return Promise.race([
-      exit.then(() => undefined),
-      delay(timeoutMs).then(() => undefined),
-    ]);
-  }
-
   async #waitForExitHandled(live: LiveService): Promise<void> {
     // exitHandled 只在进程真正退出时 resolve；未退出时保持 pending，允许调用方
     // 在「等待退出落库」与「继续走 live 路径」之间用 timeout 切换。
