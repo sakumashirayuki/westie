@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import type { RunStatus } from "../run-state";
 import { statusLabels, surfaceClasses } from "./view-styles";
 
@@ -40,6 +42,7 @@ export function ConversationComposer({
 }) {
   const running = status === "running" && isStopping !== true;
   const stopping = isStopping === true;
+  const [expanded, setExpanded] = useState(false);
   return (
     <form
       className={`${surfaceClasses} rounded-[18px] p-2.5 max-[600px]:rounded-[14px]`}
@@ -52,17 +55,30 @@ export function ConversationComposer({
       <label className="sr-only" htmlFor="task">
         {hasTurns ? "继续对话" : "开始对话"}
       </label>
-      <textarea
-        className="mb-2 block w-full resize-none rounded-xl border border-[#d9dbd3] bg-[#fcfcf9] px-3.5 py-2 leading-[1.5] text-[#14201b] outline-none focus:border-[#3f896e] focus:shadow-[0_0_0_3px_rgba(63,137,110,0.12)] disabled:bg-[#f4f4f0] disabled:text-[#69736d]"
-        id="task"
-        value={input}
-        onChange={(event) => onInputChange(event.target.value)}
-        placeholder={running
-          ? "运行中可以插话，会在下一步生效"
-          : "例如：继续分析刚才提到的第二个模块"}
-        rows={2}
-        disabled={!hasConversation || projectSelecting}
-      />
+      <div className="relative">
+        <textarea
+          className="mb-2 block w-full resize-none rounded-xl border border-[#d9dbd3] bg-[#fcfcf9] pl-3.5 pr-10 py-2 leading-[1.5] text-[#14201b] outline-none focus:border-[#3f896e] focus:shadow-[0_0_0_3px_rgba(63,137,110,0.12)] disabled:bg-[#f4f4f0] disabled:text-[#69736d]"
+          id="task"
+          value={input}
+          onChange={(event) => onInputChange(event.target.value)}
+          placeholder={running
+            ? "运行中可以插话，会在下一步生效"
+            : "例如：继续分析刚才提到的第二个模块"}
+          rows={expanded ? 8 : 2}
+          disabled={!hasConversation || projectSelecting}
+        />
+        <button
+          type="button"
+          className="absolute right-2 top-2 flex size-7 items-center justify-center rounded-md border border-[#d9dbd3] bg-[#fcfcf9] text-[#657068] hover:bg-[#f0f1ec] disabled:cursor-not-allowed disabled:opacity-45"
+          aria-label={expanded ? "收起输入框" : "展开输入框"}
+          aria-expanded={expanded}
+          title={expanded ? "收起输入框" : "展开输入框"}
+          onClick={() => setExpanded((current) => !current)}
+          disabled={!hasConversation || projectSelecting}
+        >
+          {expanded ? "▾" : "▴"}
+        </button>
+      </div>
       <div className="flex items-center justify-between">
         <span className="inline-flex items-center gap-2 text-[13px] text-[#69736d]">
           <span
